@@ -1,105 +1,138 @@
 'use strict';
 
-const CLE = 'cartefidel';
-let etat = { seuil: 10, recompense: 'Un article offert', clients: [] };
-
-try {
-  etat = Object.assign(etat, JSON.parse(localStorage.getItem(CLE)) || {});
-} catch (e) { /* stockage indisponible ou corrompu */ }
+const CLE = 'cartefidel-cartes';
+let cartes = [];
+try { cartes = JSON.parse(localStorage.getItem(CLE)) || []; } catch (e) { /* ignoré */ }
 
 const sauver = () => {
-  try { localStorage.setItem(CLE, JSON.stringify(etat)); } catch (e) { /* ignoré */ }
+  try { localStorage.setItem(CLE, JSON.stringify(cartes)); }
+  catch (e) { alert('Stockage plein : impossible d\'enregistrer.'); }
 };
-
 const $ = (id) => document.getElementById(id);
 
+// Formats ZXing / BarcodeDetector -> symbologies bwip-js
+const BWIP = {
+  EAN_13: 'ean13', ean_13: 'ean13', EAN_8: 'ean8', ean_8: 'ean8',
+  UPC_A: 'upca', upc_a: 'upca', UPC_E: 'upce', upc_e: 'upce',
+  CODE_128: 'code128', code_128: 'code128', CODE_39: 'code39', code_39: 'code39',
+  ITF: 'interleaved2of5', itf: 'interleaved2of5', CODABAR: 'rationalizedCodabar', codabar: 'rationalizedCodabar',
+  QR_CODE: 'qrcode', qr_code: 'qrcode', DATA_MATRIX: 'datamatrix', data_matrix: 'datamatrix',
+  PDF_417: 'pdf417', pdf417: 'pdf417', AZTEC: 'azteccode', aztec: 'azteccode',
+};
+let formatDetecte = null;
+
 function afficher() {
-  const filtre = $('recherche').value.trim().toLowerCase();
-  const liste = $('liste');
-  liste.replaceChildren();
-  const clients = etat.clients.filter((c) => c.nom.toLowerCase().includes(filtre));
-  $('vide').hidden = clients.length > 0;
-
-  for (const c of clients) {
-    const li = document.createElement('li');
-
-    const entete = document.createElement('div');
-    entete.className = 'entete';
-    const nom = document.createElement('strong');
-    nom.textContent = c.nom;
-    const compteur = document.createElement('span');
-    compteur.textContent = `${c.tampons} / ${etat.seuil}`;
-    entete.append(nom, compteur);
-
-    const grille = document.createElement('div');
-    grille.className = 'tampons';
-    for (let i = 0; i < etat.seuil; i++) {
-      const t = document.createElement('span');
-      t.className = 'tampon' + (i < c.tampons ? ' plein' : '');
-      grille.append(t);
+  const g = $('grille');
+  g.replaceChildren();
+  $('vide').hidden = cartes.length > 0;
+  for (const c of cartes) {
+    const b = document.createElement('button');
+    b.className = 'carte';
+    b.type = 'button';
+    if (c.logo) {
+      const img = document.createElement('img');
+      img.src = c.logo; img.alt = c.nom;
+      b.append(img);
+    } else {
+      b.textContent = c.nom;
     }
-
-    const actions = document.createElement('div');
-    actions.className = 'actions';
-    const pret = c.tampons >= etat.seuil;
-    actions.append(
-      bouton('+ Tampon', () => { c.tampons++; sauver(); afficher(); }),
-      bouton('− Tampon', () => { c.tampons = Math.max(0, c.tampons - 1); sauver(); afficher(); }, 'secondaire', c.tampons === 0),
-      bouton('Récompenser', () => {
-        c.tampons -= etat.seuil; c.recompenses++; sauver(); afficher();
-      }, '', !pret),
-      bouton('Supprimer', () => {
-        if (confirm(`Supprimer ${c.nom} ?`)) {
-          etat.clients = etat.clients.filter((x) => x.id !== c.id); sauver(); afficher();
-        }
-      }, 'secondaire')
-    );
-
-    li.append(entete, grille);
-    if (pret) {
-      const p = document.createElement('p');
-      p.className = 'pret';
-      p.textContent = `Récompense disponible : ${etat.recompense}`;
-      li.append(p);
-    }
-    const info = document.createElement('small');
-    info.textContent = `Récompenses obtenues : ${c.recompenses}`;
-    li.append(actions, info);
-    liste.append(li);
+    b.addEventListener('click', () => ouvrir(c));
+    g.append(b);
   }
 }
 
-function bouton(texte, action, classe = '', desactive = false) {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.textContent = texte;
-  if (classe) b.className = classe;
-  b.disabled = desactive;
-  b.addEventListener('click', action);
-  return b;
+function dessiner(canvas, c) {
+  const types = [c.format, /^\d{13}$/.test(c.code) ? 'ean13' : null, 'code128', 'qrcode'];
+  for (const t of types) {
+    if (!t) continue;
+    try {
+      bwipjs.toCanvas(canvas, { bcid: t, text: c.code, scale: 3, height: 15, includetext: false, paddingwidth: 8, paddingheight: 8 });
+      return;
+    } catch (e) { /* format suivant */ }
+  }
 }
 
-$('form-client').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const nom = $('nom').value.trim();
-  if (!nom) return;
-  etat.clients.push({ id: Date.now().toString(36), nom, tampons: 0, recompenses: 0 });
-  $('nom').value = '';
-  sauver();
-  afficher();
+let ouverte = null;
+function ouvrir(c) {
+  ouverte = c;
+  $('code-nom').textContent = c.nom;
+  $('code-num').textContent = c.code;
+  dessiner($('canvas-code'), c);
+  $('dlg-code').showModal();
+}
+$('fermer').addEventListener('click', () => $('dlg-code').close());
+$('supprimer').addEventListener('click', () => {
+  if (ouverte && confirm(`Supprimer ${ouverte.nom} ?`)) {
+    cartes = cartes.filter((x) => x.id !== ouverte.id);
+    sauver(); afficher(); $('dlg-code').close();
+  }
 });
 
-$('seuil').value = etat.seuil;
-$('recompense').value = etat.recompense;
-$('seuil').addEventListener('change', () => {
-  etat.seuil = Math.max(1, parseInt($('seuil').value, 10) || 1);
-  $('seuil').value = etat.seuil;
-  sauver(); afficher();
+$('ajouter').addEventListener('click', () => {
+  $('form-ajout').reset();
+  $('statut').textContent = '';
+  formatDetecte = null;
+  $('dlg-ajout').showModal();
 });
-$('recompense').addEventListener('change', () => {
-  etat.recompense = $('recompense').value.trim() || 'Récompense';
-  sauver(); afficher();
+$('annuler').addEventListener('click', () => $('dlg-ajout').close());
+
+const lireFichier = (f) => new Promise((ok, ko) => {
+  const r = new FileReader();
+  r.onload = () => ok(r.result); r.onerror = ko;
+  r.readAsDataURL(f);
 });
-$('recherche').addEventListener('input', afficher);
+
+// Réduit l'image pour le stockage local
+function reduire(url, max = 300) {
+  return new Promise((ok) => {
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      ok(cv.toDataURL('image/png'));
+    };
+    img.onerror = () => ok(url);
+    img.src = url;
+  });
+}
+
+async function scanner(fichier) {
+  $('statut').textContent = 'Analyse de l\'image…';
+  const url = await lireFichier(fichier);
+  try {
+    if ('BarcodeDetector' in window) {
+      const bmp = await createImageBitmap(fichier);
+      const r = await new BarcodeDetector().detect(bmp);
+      if (r.length) { return fin(r[0].rawValue, r[0].format); }
+    }
+  } catch (e) { /* repli sur ZXing */ }
+  try {
+    const hints = new Map([[ZXing.DecodeHintType.TRY_HARDER, true]]);
+    const lecteur = new ZXing.BrowserMultiFormatReader(hints);
+    const r = await lecteur.decodeFromImageUrl(url);
+    return fin(r.getText(), ZXing.BarcodeFormat[r.getBarcodeFormat()]);
+  } catch (e) {
+    $('statut').textContent = 'Aucun code détecté. Réessayez avec une photo plus nette ou saisissez le numéro.';
+  }
+}
+function fin(texte, format) {
+  $('code').value = texte;
+  formatDetecte = BWIP[format] || null;
+  $('statut').textContent = '✅ Code détecté.';
+}
+for (const id of ['photo-camera', 'photo-galerie']) {
+  $(id).addEventListener('change', (e) => { if (e.target.files[0]) scanner(e.target.files[0]); });
+}
+
+$('form-ajout').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = $('logo').files[0];
+  const logo = f ? await reduire(await lireFichier(f)) : null;
+  cartes.push({ id: Date.now().toString(36), nom: $('nom').value.trim(), code: $('code').value.trim(), format: formatDetecte, logo });
+  sauver(); afficher();
+  $('dlg-ajout').close();
+});
 
 afficher();
