@@ -1,0 +1,21 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; background: #f4f1ec; color: #222; }
+header { background: #7b2d26; color: #fff; padding: 1rem; text-align: center; }
+h1 { margin: 0; font-size: 1.5rem; }
+main { max-width: 640px; margin: 1rem auto; padding: 0 1rem; display: grid; gap: 1rem; }
+.panneau { background: #fff; border-radius: 10px; padding: 1rem; box-shadow: 0 1px 3px #0002; }
+h2 { margin: 0 0 .75rem; font-size: 1.1rem; }
+label { display: block; margin-bottom: .5rem; font-size: .9rem; }
+input { width: 100%; padding: .5rem; border: 1px solid #bbb; border-radius: 6px; font-size: 1rem; }
+form { display: flex; gap: .5rem; }
+button { padding: .5rem .8rem; border: 0; border-radius: 6px; background: #7b2d26; color: #fff; cursor: pointer; font-size: .9rem; }
+button.secondaire { background: #888; }
+button:disabled { opacity: .4; cursor: default; }
+ul { list-style: none; padding: 0; margin: .75rem 0 0; display: grid; gap: .75rem; }
+li { border: 1px solid #ddd; border-radius: 8px; padding: .75rem; }
+.entete { display: flex; justify-content: space-between; align-items: center; margin-bottom: .5rem; }
+.tampons { display: flex; flex-wrap: wrap; gap: .3rem; margin-bottom: .5rem; }
+.tampon { width: 1.6rem; height: 1.6rem; border-radius: 50%; border: 2px solid #7b2d26; }
+.tampon.plein { background: #7b2d26; }
+.actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+.pret { color: #1b7a3a; font-weight: bold; margin: 0 0 .5rem; }

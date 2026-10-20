@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carte Fidèle</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><h1>Carte Fidèle</h1></header>
+<main>
+  <section class="panneau">
+    <h2>Réglages</h2>
+    <label>Tampons nécessaires pour une récompense
+      <input id="seuil" type="number" min="1" value="10"></label>
+    <label>Récompense
+      <input id="recompense" type="text" value="Un article offert"></label>
+  </section>
+
+  <section class="panneau">
+    <h2>Nouveau client</h2>
+    <form id="form-client">
+      <input id="nom" type="text" placeholder="Nom du client" required>
+      <button type="submit">Ajouter</button>
+    </form>
+  </section>
+
+  <section class="panneau">
+    <h2>Clients</h2>
+    <input id="recherche" type="search" placeholder="Rechercher…">
+    <ul id="liste"></ul>
+    <p id="vide" hidden>Aucun client pour le moment.</p>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
