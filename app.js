@@ -20,6 +20,7 @@ const BWIP = {
   PDF_417: 'pdf417', pdf417: 'pdf417', AZTEC: 'azteccode', aztec: 'azteccode',
 };
 let formatDetecte = null;
+let enEdition = null;
 
 function afficher() {
   const g = $('grille');
@@ -68,11 +69,21 @@ $('supprimer').addEventListener('click', () => {
   }
 });
 
-$('ajouter').addEventListener('click', () => {
+function ouvrirFormulaire(c) {
+  enEdition = c || null;
   $('form-ajout').reset();
   $('statut').textContent = '';
-  formatDetecte = null;
+  $('titre-ajout').textContent = c ? 'Modifier la carte' : 'Nouvelle carte';
+  $('ligne-retirer-logo').hidden = !(c && c.logo);
+  formatDetecte = c ? c.format : null;
+  if (c) { $('nom').value = c.nom; $('code').value = c.code; }
   $('dlg-ajout').showModal();
+}
+$('ajouter').addEventListener('click', () => ouvrirFormulaire(null));
+$('modifier').addEventListener('click', () => {
+  const c = ouverte;
+  $('dlg-code').close();
+  ouvrirFormulaire(c);
 });
 $('annuler').addEventListener('click', () => $('dlg-ajout').close());
 
@@ -129,8 +140,17 @@ for (const id of ['photo-camera', 'photo-galerie']) {
 $('form-ajout').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = $('logo').files[0];
-  const logo = f ? await reduire(await lireFichier(f)) : null;
-  cartes.push({ id: Date.now().toString(36), nom: $('nom').value.trim(), code: $('code').value.trim(), format: formatDetecte, logo });
+  const nom = $('nom').value.trim();
+  const code = $('code').value.trim();
+  if (enEdition) {
+    if (code !== enEdition.code && formatDetecte === enEdition.format) formatDetecte = null;
+    enEdition.nom = nom; enEdition.code = code; enEdition.format = formatDetecte;
+    if (f) enEdition.logo = await reduire(await lireFichier(f));
+    else if ($('retirer-logo').checked) enEdition.logo = null;
+  } else {
+    const logo = f ? await reduire(await lireFichier(f)) : null;
+    cartes.push({ id: Date.now().toString(36), nom, code, format: formatDetecte, logo });
+  }
   sauver(); afficher();
   $('dlg-ajout').close();
 });
