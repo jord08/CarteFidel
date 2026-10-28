@@ -25,6 +25,13 @@
   "alias": []
  },
  {
+  "nom": "Bricomarché",
+  "fichier": "logos/bricomarche.svg",
+  "alias": [
+   "Bricomarche"
+  ]
+ },
+ {
   "nom": "Burger King",
   "fichier": "logos/burgerking.svg",
   "alias": []
@@ -82,6 +89,14 @@
   "nom": "H&M",
   "fichier": "logos/handm.svg",
   "alias": []
+ },
+ {
+  "nom": "Hopla",
+  "fichier": "logos/hopla.svg",
+  "alias": [
+   "Coopérative Hopla",
+   "Hopla ferme"
+  ]
  },
  {
   "nom": "IKEA",
