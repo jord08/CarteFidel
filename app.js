@@ -295,23 +295,32 @@ $('menu').addEventListener('click', () => { $('menu-statut').textContent = ''; $
 $('menu-fermer').addEventListener('click', () => $('dlg-menu').close());
 const nomFichier = () => `cartes-${new Date().toISOString().slice(0, 10)}.json`;
 const contenuExport = () => JSON.stringify({ version: 1, cartes }, null, 1);
-function telecharger() {
+function telecharger(contenu = contenuExport()) {
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([contenuExport()], { type: 'application/json' }));
+  a.href = URL.createObjectURL(new Blob([contenu], { type: 'application/json' }));
   a.download = nomFichier();
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
-$('exporter').addEventListener('click', telecharger);
+$('exporter').addEventListener('click', () => telecharger());
 
 // Partage via la feuille de partage du système (messagerie, e-mail, Drive…).
+// Fichier de partage allégé : les logos d'enseignes connues sont retrouvés par nom à l'import,
+// inutile de les embarquer (ils pèsent l'essentiel du fichier, et certains systèmes refusent les gros fichiers).
+const logoConnu = (nom) => !!logos?.some((l) => [l.nom, ...l.alias].some((v) => norm(v) === norm(nom)));
+const contenuPartage = () => JSON.stringify({
+  version: 1,
+  cartes: cartes.map((c) => (c.logo && logoConnu(c.nom) ? { ...c, logo: null } : c)),
+});
 $('partager').addEventListener('click', async () => {
   if (!cartes.length) { $('menu-statut').textContent = 'Aucune carte à partager.'; return; }
+  await chargerLogos();
+  const contenu = contenuPartage();
   // Selon le système, le type JSON n'est pas toujours accepté : repli sur du texte brut.
-  const candidats = ['application/json', 'text/plain'].map((type) => new File([contenuExport()], nomFichier(), { type }));
+  const candidats = ['application/json', 'text/plain'].map((type) => new File([contenu], nomFichier(), { type }));
   const fichier = candidats.find((f) => navigator.canShare?.({ files: [f] }));
   if (!fichier) {
-    telecharger();
+    telecharger(contenu);
     $('menu-statut').textContent = 'Partage indisponible : fichier téléchargé, envoyez-le manuellement.';
     return;
   }
@@ -319,7 +328,10 @@ $('partager').addEventListener('click', async () => {
     await navigator.share({ files: [fichier], title: 'Mes cartes de fidélité' });
     $('menu-statut').textContent = '';
   } catch (e) {
-    if (e.name !== 'AbortError') $('menu-statut').textContent = 'Le partage a échoué.';
+    if (e.name === 'AbortError') return;
+    // Repli : le fichier est téléchargé pour pouvoir l'envoyer à la main.
+    telecharger(contenu);
+    $('menu-statut').textContent = `Le partage a échoué (${e.name}) : fichier téléchargé, envoyez-le manuellement.`;
   }
 });
 $('importer').addEventListener('change', async (e) => {
@@ -334,6 +346,7 @@ $('importer').addEventListener('change', async (e) => {
     }
     afficher();
     $('menu-statut').textContent = `✅ ${liste.length} carte(s) importée(s).`;
+    completerLogos(); // retrouve les logos retirés du fichier de partage
   } catch (err) {
     $('menu-statut').textContent = 'Fichier invalide.';
   }
