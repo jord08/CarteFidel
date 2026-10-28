@@ -3,6 +3,8 @@
 const $ = (id) => document.getElementById(id);
 const ANCIENNE_CLE = 'cartefidel-cartes';
 const MODE_QR = 'qrcode';
+const SYMBOLOGIE_QR = 'qrcode'; // symbologie bwip-js (à ne pas confondre avec MODE_QR : préférence d'affichage)
+const ORIGINE_LOGO = Object.freeze({ CATALOGUE: 'catalogue', PERSO: 'perso', RETIRE: 'retire' }); // voir « Cartes : forme et validation »
 const TAILLE_LOGO_MAX = 300; // px, pour les logos importés par l'utilisateur
 const TAILLE_IMPORT_MAX = 10 * 1024 * 1024; // octets
 
@@ -12,6 +14,11 @@ const normaliser = (s) => String(s ?? '').toLowerCase().normalize('NFD').replace
 const nouvelId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const fermerAvec = (idBouton, idDialog) => $(idBouton).addEventListener('click', () => $(idDialog).close());
 const couperFlux = (flux) => flux?.getTracks().forEach((piste) => piste.stop());
+function montrerApercu(img, src) {
+  img.hidden = !src;
+  if (src) img.src = src;
+}
+const messageMenu = (texte) => { $('menu-statut').textContent = texte; };
 async function lireJson(url) {
   const reponse = await fetch(url);
   if (!reponse.ok) throw new Error(`${url} : ${reponse.status}`);
@@ -24,11 +31,11 @@ const lireFichier = (f) => new Promise((ok, ko) => {
 });
 
 // Réduit l'image pour le stockage local
-function reduire(url, max = TAILLE_LOGO_MAX) {
+function reduire(url) {
   return new Promise((ok) => {
     const img = new Image();
     img.onload = () => {
-      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const k = Math.min(1, TAILLE_LOGO_MAX / Math.max(img.width, img.height));
       const canvas = document.createElement('canvas');
       canvas.width = Math.round(img.width * k); canvas.height = Math.round(img.height * k);
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -40,10 +47,11 @@ function reduire(url, max = TAILLE_LOGO_MAX) {
 }
 
 // --- Cartes : forme et validation -------------------------------------------
-// Une carte : { id, nom, code, format, logo, mode?, dernier, usages, logoAuto, logoPerso, sansLogo }
+// Une carte : { id, nom, code, format, logo, mode?, origineLogo?, dernier, usages }
 //  - format : symbologie bwip-js détectée au scan (sinon deviné)
 //  - mode : MODE_QR si l'utilisateur préfère le QR code (absent = code-barres)
-//  - logoAuto / logoPerso : origine du logo (catalogue / image de l'utilisateur) ; sansLogo : logo retiré exprès
+//  - origineLogo : 'catalogue' (suit le nom de l'enseigne), 'perso' (image choisie, jamais remplacée),
+//    'retire' (retiré exprès : pas de ré-ajout automatique) ; absent = origine inconnue (carte ancienne)
 // Rend une carte propre (types vérifiés, champs inconnus écartés) ou null si elle est inutilisable.
 // Sert aussi bien à la lecture de la base qu'à l'import d'un fichier.
 function nettoyerCarte(c) {
@@ -59,12 +67,21 @@ function nettoyerCarte(c) {
     logo: typeof c.logo === 'string' && c.logo.startsWith('data:image/') && c.logo.length < 600000 ? c.logo : null,
     dernier: Number.isFinite(c.dernier) ? c.dernier : 0,
     usages: Number.isFinite(c.usages) ? c.usages : 0,
-    logoAuto: c.logoAuto === true,
-    logoPerso: c.logoPerso === true,
-    sansLogo: c.sansLogo === true,
   };
   if (c.mode === MODE_QR) carte.mode = MODE_QR;
+  // Un logo absent ne peut venir ni du catalogue ni de l'utilisateur (ex. image trop grosse écartée).
+  const origine = origineLogoDe(c);
+  if (origine && (carte.logo || origine === ORIGINE_LOGO.RETIRE)) carte.origineLogo = origine;
   return carte;
+}
+// Origine du logo d'une carte. Reprend aussi les trois indicateurs de la version 18 (logoAuto / logoPerso / sansLogo),
+// déployée brièvement avant le champ unique origineLogo : une carte sauvegardée alors garde son état.
+function origineLogoDe(c) {
+  if (Object.values(ORIGINE_LOGO).includes(c.origineLogo)) return c.origineLogo;
+  if (c.sansLogo === true) return ORIGINE_LOGO.RETIRE;
+  if (c.logoPerso === true) return ORIGINE_LOGO.PERSO;
+  if (c.logoAuto === true) return ORIGINE_LOGO.CATALOGUE;
+  return undefined;
 }
 
 // --- Stockage (IndexedDB) ---------------------------------------------------
@@ -145,16 +162,17 @@ $('recherche').addEventListener('input', afficher);
 
 // --- Affichage d'un code ----------------------------------------------------
 // Dessine le code et renvoie la symbologie réellement utilisée (ou null si rien ne convient).
-async function dessiner(canvas, c) {
+async function dessiner(c) {
   await charger('lib/bwip-js-min.js');
+  const canvas = $('canvas-code');
   canvas.width = canvas.width; // efface le dessin de la carte précédente
   const types = c.mode === MODE_QR
-    ? ['qrcode']
-    : [c.format, /^\d{13}$/.test(c.code) ? 'ean13' : null, 'code128', 'qrcode'];
+    ? [SYMBOLOGIE_QR]
+    : [c.format, /^\d{13}$/.test(c.code) ? 'ean13' : null, 'code128', SYMBOLOGIE_QR];
   for (const t of types) {
     if (!t) continue;
     try {
-      bwipjs.toCanvas(canvas, { bcid: t, text: c.code, scale: t === 'qrcode' ? 6 : 4, height: 18, includetext: false, paddingwidth: 8, paddingheight: 8 });
+      bwipjs.toCanvas(canvas, { bcid: t, text: c.code, scale: t === SYMBOLOGIE_QR ? 6 : 4, height: 18, includetext: false, paddingwidth: 8, paddingheight: 8 });
       return t;
     } catch (e) { /* format suivant */ }
   }
@@ -163,12 +181,15 @@ async function dessiner(canvas, c) {
 
 // Bascule code-barres / QR code (choix mémorisé par carte). L'interrupteur reflète ce qui est vraiment dessiné.
 async function afficherCode(c) {
-  const dessine = await dessiner($('canvas-code'), c);
-  const qr = dessine === 'qrcode';
+  const dessine = await dessiner(c);
+  const qr = dessine === SYMBOLOGIE_QR;
   $('mode-barres').setAttribute('aria-pressed', String(!qr));
   $('mode-qr').setAttribute('aria-pressed', String(qr));
   $('canvas-code').classList.toggle('qr', qr);
-  $('bascule').hidden = c.format === 'qrcode'; // la carte est déjà un QR : rien à basculer
+  $('canvas-code').hidden = !dessine;
+  $('code-num').textContent = dessine ? c.code : `${c.code} — impossible à dessiner en code-barres`;
+  // Rien à basculer si la carte est déjà un QR ou si rien ne peut être dessiné.
+  $('bascule').hidden = !dessine || c.format === SYMBOLOGIE_QR;
 }
 for (const [id, mode] of [['mode-barres', undefined], ['mode-qr', MODE_QR]]) {
   $(id).addEventListener('click', async () => {
@@ -181,13 +202,17 @@ for (const [id, mode] of [['mode-barres', undefined], ['mode-qr', MODE_QR]]) {
 
 let ouverte = null;
 let verrou = null;
+let jetonVerrou = 0; // invalide les demandes de verrou en cours quand la fenêtre se ferme
 
 // Garde l'écran allumé pendant le passage en caisse.
 async function verrouillerEcran() {
+  if (verrou) return;
+  const jeton = ++jetonVerrou;
   try {
     const v = await navigator.wakeLock?.request('screen');
     if (!v) return;
-    if (!$('dlg-code').open) { v.release().catch(() => {}); return; } // fenêtre fermée pendant l'attente
+    // Fenêtre fermée pendant l'attente, ou un autre verrou a pris le relais : celui-ci ne sert plus.
+    if (jeton !== jetonVerrou || verrou || !$('dlg-code').open) { v.release().catch(() => {}); return; }
     verrou = v;
     v.addEventListener('release', () => { if (verrou === v) verrou = null; });
   } catch (e) { /* non supporté ou refusé */ }
@@ -210,6 +235,7 @@ async function ouvrir(c) {
   await afficherCode(c);
 }
 $('dlg-code').addEventListener('close', () => {
+  jetonVerrou++;
   verrou?.release().catch(() => {}); verrou = null;
   afficher();
 });
@@ -224,7 +250,7 @@ $('supprimer').addEventListener('click', async () => {
 
 // --- Logos d'enseignes (logos/index.json) -----------------------------------
 let logos = null;
-let logoAuto = null; // logo proposé dans le formulaire d'ajout
+let logoPropose = null; // logo proposé dans le formulaire d'ajout
 async function chargerLogos() {
   if (logos) return;
   try {
@@ -265,9 +291,8 @@ async function proposerLogo() {
   const jeton = ++jetonProposition;
   const propose = $('logo').files[0] ? null : await logoPour($('nom').value).catch(() => null);
   if (jeton !== jetonProposition) return; // une saisie plus récente a pris le relais
-  logoAuto = propose;
-  $('logo-apercu').hidden = !logoAuto;
-  if (logoAuto) $('logo-apercu').src = logoAuto;
+  logoPropose = propose;
+  montrerApercu($('logo-apercu'), logoPropose);
 }
 // Ajoute le logo aux cartes qui n'en ont pas, d'après leur nom.
 async function completerLogos() {
@@ -277,14 +302,16 @@ async function completerLogos() {
   for (const c of cartes) {
     try {
       if (c.logo) {
-        // Carte créée avant le suivi de l'origine du logo : le logo d'une enseigne connue est un logo automatique.
-        if (!c.logoAuto && !c.logoPerso && trouverLogo(c.nom)) { c.logoAuto = true; await enregistrer(c); }
+        // Carte créée avant le suivi de l'origine du logo : le logo d'une enseigne connue est un logo du catalogue.
+        if (!c.origineLogo && trouverLogo(c.nom)) { c.origineLogo = ORIGINE_LOGO.CATALOGUE; await enregistrer(c); }
         continue;
       }
-      if (c.sansLogo) continue;
-      const logo = await logoPour(c.nom);
-      if (!logo) continue;
-      Object.assign(c, { logo, logoAuto: true });
+      if (c.origineLogo === ORIGINE_LOGO.RETIRE) continue;
+      const nom = c.nom;
+      const logo = await logoPour(nom);
+      // La carte a pu être renommée ou recevoir un logo pendant l'attente.
+      if (!logo || c.nom !== nom || c.logo) continue;
+      Object.assign(c, { logo, origineLogo: ORIGINE_LOGO.CATALOGUE });
       await enregistrer(c);
       change = true;
     } catch (e) { /* réessai au prochain démarrage */ }
@@ -301,8 +328,7 @@ $('modifier').addEventListener('click', () => {
   $('logo-edit').value = '';
   $('retirer-logo').checked = false;
   $('retirer-ligne').hidden = !ouverte.logo;
-  $('logo-edit-apercu').hidden = !ouverte.logo;
-  if (ouverte.logo) $('logo-edit-apercu').src = ouverte.logo;
+  montrerApercu($('logo-edit-apercu'), ouverte.logo);
   $('dlg-edit').showModal();
   chargerLogos();
 });
@@ -317,14 +343,14 @@ $('form-edit').addEventListener('submit', async (e) => {
   c.nom = nom;
   if (fichier) {
     // Image choisie par l'utilisateur : elle prime et n'est plus jamais remplacée.
-    Object.assign(c, { logo: await reduire(await lireFichier(fichier)), logoPerso: true, logoAuto: false, sansLogo: false });
+    Object.assign(c, { logo: await reduire(await lireFichier(fichier)), origineLogo: ORIGINE_LOGO.PERSO });
   } else if ($('retirer-logo').checked) {
-    Object.assign(c, { logo: null, logoPerso: false, logoAuto: false, sansLogo: true });
-  } else if (!c.logoPerso) {
-    // Logo automatique : il suit le nouveau nom (celui de la nouvelle enseigne, ou aucun).
+    Object.assign(c, { logo: null, origineLogo: ORIGINE_LOGO.RETIRE });
+  } else if (c.origineLogo !== ORIGINE_LOGO.PERSO) {
+    // Logo du catalogue : il suit le nouveau nom (celui de la nouvelle enseigne, ou aucun).
     const auto = await logoPour(nom).catch(() => null);
-    if (auto) Object.assign(c, { logo: auto, logoAuto: true, sansLogo: false });
-    else if (c.logoAuto) Object.assign(c, { logo: null, logoAuto: false });
+    if (auto) Object.assign(c, { logo: auto, origineLogo: ORIGINE_LOGO.CATALOGUE });
+    else if (c.origineLogo === ORIGINE_LOGO.CATALOGUE) { c.logo = null; delete c.origineLogo; }
   }
   await enregistrer(c);
   afficher();
@@ -336,8 +362,8 @@ $('ajouter').addEventListener('click', () => {
   $('form-ajout').reset();
   $('statut').textContent = '';
   formatDetecte = null;
-  logoAuto = null;
-  $('logo-apercu').hidden = true;
+  logoPropose = null;
+  montrerApercu($('logo-apercu'), null);
   $('dlg-ajout').showModal();
   chargerLogos();
 });
@@ -453,7 +479,7 @@ async function demarrerScan() {
   const s = sessionScan = { flux: null, minuteur: null, actif: true };
   try {
     s.flux = await ouvrirCamera();
-    if (sessionScan !== s) { couperFlux(s.flux); return; } // annulé pendant l'attente
+    if (!s.actif) { couperFlux(s.flux); return; } // annulé pendant l'attente
     const video = $('video');
     video.srcObject = s.flux;
     await video.play();
@@ -476,7 +502,7 @@ async function demarrerScan() {
     };
     boucle();
   } catch (e) {
-    if (sessionScan === s) $('scan-statut').textContent = erreurCamera(e);
+    if (s.actif) $('scan-statut').textContent = erreurCamera(e);
   }
 }
 $('scan-direct').addEventListener('click', demarrerScan);
@@ -486,10 +512,10 @@ $('dlg-scan').addEventListener('close', arreterScan);
 $('form-ajout').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fichier = $('logo').files[0];
-  const logo = fichier ? await reduire(await lireFichier(fichier)) : logoAuto;
+  const logo = fichier ? await reduire(await lireFichier(fichier)) : logoPropose;
   const c = nettoyerCarte({
     id: nouvelId(), nom: $('nom').value, code: $('code').value, format: formatDetecte,
-    logo, logoPerso: !!fichier, logoAuto: !fichier && !!logoAuto, dernier: Date.now(),
+    logo, origineLogo: fichier ? ORIGINE_LOGO.PERSO : logoPropose ? ORIGINE_LOGO.CATALOGUE : undefined, dernier: Date.now(),
   });
   if (!c) { $('statut').textContent = 'Le nom et le numéro sont obligatoires.'; return; }
   const doublon = cartes.find((x) => x.code === c.code);
@@ -511,7 +537,7 @@ async function afficherVersion() {
   $('version').textContent = `Version ${v}`;
 }
 $('menu').addEventListener('click', () => {
-  $('menu-statut').textContent = '';
+  messageMenu('');
   afficherVersion();
   $('dlg-menu').showModal();
 });
@@ -533,13 +559,13 @@ $('exporter').addEventListener('click', () => telecharger());
 // les gros fichiers). Les logos choisis par l'utilisateur sont conservés.
 function pourPartage(c) {
   const { usages, dernier, ...reste } = c;
-  return !c.logoPerso && c.logo && trouverLogo(c.nom) ? { ...reste, logo: null } : reste;
+  return c.origineLogo !== ORIGINE_LOGO.PERSO && c.logo && trouverLogo(c.nom) ? { ...reste, logo: null } : reste;
 }
 const contenuPartage = () => JSON.stringify({ version: 1, cartes: cartes.map(pourPartage) });
 
 // Partage via la feuille de partage du système (messagerie, e-mail, Drive…).
 $('partager').addEventListener('click', async () => {
-  if (!cartes.length) { $('menu-statut').textContent = 'Aucune carte à partager.'; return; }
+  if (!cartes.length) { messageMenu('Aucune carte à partager.'); return; }
   // Évite d'attendre quand la liste de logos est déjà chargée (le partage doit suivre le geste de l'utilisateur).
   if (!logos) await chargerLogos();
   const contenu = contenuPartage();
@@ -548,17 +574,17 @@ $('partager').addEventListener('click', async () => {
   const fichier = new File([contenu], nomFichier().replace(/\.json$/, '.txt'), { type: 'text/plain' });
   if (!navigator.canShare?.({ files: [fichier] })) {
     telecharger(contenu);
-    $('menu-statut').textContent = 'Partage indisponible : fichier téléchargé, envoyez-le manuellement.';
+    messageMenu('Partage indisponible : fichier téléchargé, envoyez-le manuellement.');
     return;
   }
   try {
     await navigator.share({ files: [fichier], title: 'Mes cartes de fidélité' });
-    $('menu-statut').textContent = '';
+    messageMenu('');
   } catch (e) {
     if (e.name === 'AbortError') return;
     // Repli : le fichier est téléchargé pour pouvoir l'envoyer à la main.
     telecharger(contenu);
-    $('menu-statut').textContent = `Le partage a échoué (${e.name}) : fichier téléchargé, envoyez-le manuellement.`;
+    messageMenu(`Le partage a échoué (${e.name}) : fichier téléchargé, envoyez-le manuellement.`);
   }
 });
 
@@ -585,12 +611,12 @@ $('importer').addEventListener('change', async (e) => {
       ajoutees++;
     }
     afficher();
-    $('menu-statut').textContent = `✅ ${ajoutees} carte(s) importée(s)`
+    messageMenu(`✅ ${ajoutees} carte(s) importée(s)`
       + (presentes ? ` · ${presentes} déjà présente(s)` : '')
-      + (invalides ? ` · ${invalides} ignorée(s) (invalide)` : '');
+      + (invalides ? ` · ${invalides} ignorée(s) (invalide)` : ''));
     completerLogos(); // retrouve les logos retirés du fichier de partage
   } catch (err) {
-    $('menu-statut').textContent = 'Fichier invalide.';
+    messageMenu('Fichier invalide.');
   } finally {
     e.target.value = '';
   }
