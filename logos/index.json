@@ -10,6 +10,15 @@
   "alias": []
  },
  {
+  "nom": "Alice Délice",
+  "fichier": "logos/alicedelice.svg",
+  "alias": [
+   "Alice Delice",
+   "Alice Délices",
+   "Alice Delices"
+  ]
+ },
+ {
   "nom": "Amazon",
   "fichier": "logos/amazon.svg",
   "alias": []
@@ -18,6 +27,23 @@
   "nom": "Auchan",
   "fichier": "logos/auchan.svg",
   "alias": []
+ },
+ {
+  "nom": "Besson",
+  "fichier": "logos/besson.svg",
+  "alias": [
+   "Besson Chaussures",
+   "Besson Shoes"
+  ]
+ },
+ {
+  "nom": "Biok",
+  "fichier": "logos/biok.svg",
+  "alias": [
+   "Venta Biok",
+   "Ventabiok",
+   "Venta Biok Ibardin"
+  ]
  },
  {
   "nom": "Boulanger",
@@ -42,9 +68,33 @@
   "alias": []
  },
  {
+  "nom": "Casino",
+  "fichier": "logos/casino.svg",
+  "alias": [
+   "Casino supermarchés",
+   "Supermarchés Casino"
+  ]
+ },
+ {
   "nom": "Castorama",
   "fichier": "logos/castorama.svg",
   "alias": []
+ },
+ {
+  "nom": "Cerf Dellier",
+  "fichier": "logos/cerfdellier.svg",
+  "alias": [
+   "Cerf delier",
+   "Cerf dellier",
+   "Cerf Delier"
+  ]
+ },
+ {
+  "nom": "Coccimarket",
+  "fichier": "logos/coccimarket.png",
+  "alias": [
+   "Cocci market"
+  ]
  },
  {
   "nom": "Cora",
@@ -84,6 +134,17 @@
   "nom": "Franprix",
   "fichier": "logos/franprix.svg",
   "alias": []
+ },
+ {
+  "nom": "Gaumont Pathé",
+  "fichier": "logos/gaumontpathe.png",
+  "alias": [
+   "Gaumont Pathe",
+   "Gaumont",
+   "Pathé",
+   "Les cinémas Gaumont Pathé"
+  ],
+  "fond": "#8c8c8c"
  },
  {
   "nom": "H&M",
@@ -126,14 +187,35 @@
   ]
  },
  {
+  "nom": "Jardiland",
+  "fichier": "logos/jardiland.png",
+  "alias": []
+ },
+ {
   "nom": "KFC",
   "fichier": "logos/kfc.svg",
   "alias": []
  },
  {
+  "nom": "La Nouvelle Douane",
+  "fichier": "logos/nouvelledouane.png",
+  "alias": [
+   "Nouvelle Douane"
+  ]
+ },
+ {
   "nom": "Leroy Merlin",
   "fichier": "logos/leroymerlin.svg",
   "alias": []
+ },
+ {
+  "nom": "Les 3 Brasseurs",
+  "fichier": "logos/3brasseurs.png",
+  "alias": [
+   "3 Brasseurs",
+   "Trois Brasseurs",
+   "Les trois brasseurs"
+  ]
  },
  {
   "nom": "Lidl",
@@ -154,9 +236,35 @@
   "alias": []
  },
  {
+  "nom": "Micromania",
+  "fichier": "logos/micromania.svg",
+  "alias": [
+   "Micromania-Zing",
+   "Micromania Zing"
+  ]
+ },
+ {
+  "nom": "Mise au Green",
+  "fichier": "logos/miseaugreen.svg",
+  "alias": [
+   "Mise au green",
+   "Miseaugreen"
+  ]
+ },
+ {
   "nom": "Monoprix",
   "fichier": "logos/monoprix.svg",
   "alias": []
+ },
+ {
+  "nom": "Nature et Découvertes",
+  "fichier": "logos/natureetdecouvertes.svg",
+  "alias": [
+   "Nature et découverte",
+   "Nature & Découvertes",
+   "Nature et Decouvertes",
+   "Nature et Decouverte"
+  ]
  },
  {
   "nom": "Netto",
@@ -196,6 +304,16 @@
  {
   "nom": "Uniqlo",
   "fichier": "logos/uniqlo.svg",
+  "alias": []
+ },
+ {
+  "nom": "Weldom",
+  "fichier": "logos/weldom.svg",
+  "alias": []
+ },
+ {
+  "nom": "Yves Rocher",
+  "fichier": "logos/yvesrocher.svg",
   "alias": []
  },
  {
