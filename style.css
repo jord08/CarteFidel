@@ -31,3 +31,7 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .logo-ligne { display: flex; gap: .75rem; align-items: flex-end; }
 .logo-ligne label { flex: 1; }
 #logo-apercu { width: 3.5rem; height: 3.5rem; object-fit: contain; margin-bottom: .75rem; border: 1px solid #ddd; border-radius: 8px; padding: .25rem; }
+#canvas-code.qr { width: 14rem; max-width: 100%; }
+.bascule { display: flex; margin: .75rem auto 0; width: fit-content; border: 1px solid #7b2d26; border-radius: 999px; overflow: hidden; }
+.bascule button { background: #fff; color: #7b2d26; border-radius: 0; padding: .45rem 1rem; }
+.bascule button[aria-pressed="true"] { background: #7b2d26; color: #fff; }
