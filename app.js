@@ -622,6 +622,22 @@ $('importer').addEventListener('change', async (e) => {
   }
 });
 
+// --- Fermeture des fenêtres d'un clic à côté (sur le fond grisé) ------------
+// Il faut que l'appui ET le relâchement aient lieu sur le fond : glisser un texte depuis la fenêtre
+// jusqu'à l'extérieur ne doit pas la fermer.
+for (const fenetre of document.querySelectorAll('dialog')) {
+  let appuiSurLeFond = false;
+  const surLeFond = (e) => {
+    const zone = fenetre.getBoundingClientRect();
+    return e.target === fenetre && (e.clientX < zone.left || e.clientX > zone.right || e.clientY < zone.top || e.clientY > zone.bottom);
+  };
+  fenetre.addEventListener('pointerdown', (e) => { appuiSurLeFond = surLeFond(e); });
+  fenetre.addEventListener('click', (e) => {
+    if (appuiSurLeFond && surLeFond(e)) fenetre.close();
+    appuiSurLeFond = false;
+  });
+}
+
 // --- Démarrage --------------------------------------------------------------
 (async () => {
   try {
