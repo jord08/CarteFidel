@@ -314,12 +314,13 @@ const contenuPartage = () => JSON.stringify({
 });
 $('partager').addEventListener('click', async () => {
   if (!cartes.length) { $('menu-statut').textContent = 'Aucune carte à partager.'; return; }
-  await chargerLogos();
+  // Évite d'attendre quand la liste de logos est déjà chargée (le partage doit suivre le geste de l'utilisateur).
+  if (!logos) await chargerLogos();
   const contenu = contenuPartage();
-  // Selon le système, le type JSON n'est pas toujours accepté : repli sur du texte brut.
-  const candidats = ['application/json', 'text/plain'].map((type) => new File([contenu], nomFichier(), { type }));
-  const fichier = candidats.find((f) => navigator.canShare?.({ files: [f] }));
-  if (!fichier) {
+  // Chrome (Android) n'autorise le partage de fichiers que pour une liste d'extensions précise
+  // (.txt oui, .json non) : le JSON est donc envoyé comme un fichier texte (« .txt »).
+  const fichier = new File([contenu], nomFichier().replace(/\.json$/, '.txt'), { type: 'text/plain' });
+  if (!navigator.canShare?.({ files: [fichier] })) {
     telecharger(contenu);
     $('menu-statut').textContent = 'Partage indisponible : fichier téléchargé, envoyez-le manuellement.';
     return;
