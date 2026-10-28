@@ -1,6 +1,6 @@
 'use strict';
 // Incrémenter la version à chaque modification des fichiers ci-dessous.
-const CACHE = 'cartefidel-v2';
+const CACHE = 'cartefidel-v3';
 const FICHIERS = [
   './', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest',
   'lib/bwip-js-min.js', 'lib/zxing.min.js',

@@ -130,16 +130,34 @@ async function chargerLogos() {
     $('enseignes').replaceChildren(...logos.map((l) => Object.assign(document.createElement('option'), { value: l.nom })));
   } catch (e) { logos = []; }
 }
-async function proposerLogo() {
-  logoAuto = null;
-  const n = norm($('nom').value);
+// Logo (data URL) correspondant à un nom d'enseigne, ou null.
+async function logoPour(nom) {
+  const n = norm(nom);
   const l = n && logos?.find((x) => [x.nom, ...x.alias].some((v) => norm(v) === n));
-  if (l && !$('logo').files[0]) {
-    const svg = await (await fetch(l.fichier)).text();
-    logoAuto = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
-  }
+  if (!l) return null;
+  const svg = await (await fetch(l.fichier)).text();
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+async function proposerLogo() {
+  logoAuto = $('logo').files[0] ? null : await logoPour($('nom').value);
   $('logo-apercu').hidden = !logoAuto;
   if (logoAuto) $('logo-apercu').src = logoAuto;
+}
+// Ajoute le logo aux cartes qui n'en ont pas, d'après leur nom.
+async function completerLogos() {
+  await chargerLogos();
+  let change = false;
+  for (const c of cartes) {
+    if (c.logo) continue;
+    try {
+      const logo = await logoPour(c.nom);
+      if (!logo) continue;
+      c.logo = logo;
+      await enregistrer(c);
+      change = true;
+    } catch (e) { /* réessai au prochain démarrage */ }
+  }
+  if (change) afficher();
 }
 $('nom').addEventListener('input', proposerLogo);
 $('logo').addEventListener('change', proposerLogo);
@@ -256,6 +274,7 @@ $('importer').addEventListener('change', async (e) => {
   }
   afficher();
   navigator.storage?.persist?.(); // évite la purge automatique par le navigateur
+  completerLogos();
 })();
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
