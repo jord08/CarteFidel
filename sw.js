@@ -1,14 +1,21 @@
 'use strict';
 // Incrémenter la version à chaque modification des fichiers ci-dessous.
-const CACHE = 'cartefidel-v1';
+const CACHE = 'cartefidel-v2';
 const FICHIERS = [
   './', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest',
   'lib/bwip-js-min.js', 'lib/zxing.min.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png',
+  'logos/index.json',
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FICHIERS)).then(() => self.skipWaiting()));
+  e.waitUntil(
+    caches.open(CACHE).then(async (c) => {
+      await c.addAll(FICHIERS);
+      const logos = await (await c.match('logos/index.json')).json();
+      await c.addAll(logos.map((l) => l.fichier));
+    }).then(() => self.skipWaiting()),
+  );
 });
 self.addEventListener('activate', (e) => {
   e.waitUntil(

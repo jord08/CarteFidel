@@ -1,0 +1,161 @@
+[
+ {
+  "nom": "Adidas",
+  "fichier": "logos/adidas.svg",
+  "alias": []
+ },
+ {
+  "nom": "Air France",
+  "fichier": "logos/airfrance.svg",
+  "alias": []
+ },
+ {
+  "nom": "Amazon",
+  "fichier": "logos/amazon.svg",
+  "alias": []
+ },
+ {
+  "nom": "Auchan",
+  "fichier": "logos/auchan.svg",
+  "alias": []
+ },
+ {
+  "nom": "Boulanger",
+  "fichier": "logos/boulanger.svg",
+  "alias": []
+ },
+ {
+  "nom": "Burger King",
+  "fichier": "logos/burgerking.svg",
+  "alias": []
+ },
+ {
+  "nom": "Carrefour",
+  "fichier": "logos/carrefour.svg",
+  "alias": []
+ },
+ {
+  "nom": "Castorama",
+  "fichier": "logos/castorama.svg",
+  "alias": []
+ },
+ {
+  "nom": "Cora",
+  "fichier": "logos/cora.svg",
+  "alias": []
+ },
+ {
+  "nom": "Cultura",
+  "fichier": "logos/cultura.svg",
+  "alias": []
+ },
+ {
+  "nom": "Darty",
+  "fichier": "logos/darty.svg",
+  "alias": []
+ },
+ {
+  "nom": "E.Leclerc",
+  "fichier": "logos/edotleclerc.svg",
+  "alias": [
+   "Leclerc"
+  ]
+ },
+ {
+  "nom": "Fnac",
+  "fichier": "logos/fnac.svg",
+  "alias": []
+ },
+ {
+  "nom": "Franprix",
+  "fichier": "logos/franprix.svg",
+  "alias": []
+ },
+ {
+  "nom": "H&M",
+  "fichier": "logos/handm.svg",
+  "alias": []
+ },
+ {
+  "nom": "IKEA",
+  "fichier": "logos/ikea.svg",
+  "alias": []
+ },
+ {
+  "nom": "Intermarché",
+  "fichier": "logos/intermarche.svg",
+  "alias": [
+   "Intermarche"
+  ]
+ },
+ {
+  "nom": "KFC",
+  "fichier": "logos/kfc.svg",
+  "alias": []
+ },
+ {
+  "nom": "Leroy Merlin",
+  "fichier": "logos/leroymerlin.svg",
+  "alias": []
+ },
+ {
+  "nom": "Lidl",
+  "fichier": "logos/lidl.svg",
+  "alias": []
+ },
+ {
+  "nom": "McDonald's",
+  "fichier": "logos/mcdonalds.svg",
+  "alias": []
+ },
+ {
+  "nom": "Monoprix",
+  "fichier": "logos/monoprix.svg",
+  "alias": []
+ },
+ {
+  "nom": "Netto",
+  "fichier": "logos/netto.svg",
+  "alias": []
+ },
+ {
+  "nom": "Nike",
+  "fichier": "logos/nike.svg",
+  "alias": []
+ },
+ {
+  "nom": "Pandora",
+  "fichier": "logos/pandora.svg",
+  "alias": []
+ },
+ {
+  "nom": "Picard",
+  "fichier": "logos/picardsurgeles.svg",
+  "alias": []
+ },
+ {
+  "nom": "Shell",
+  "fichier": "logos/shell.svg",
+  "alias": []
+ },
+ {
+  "nom": "SNCF",
+  "fichier": "logos/sncf.svg",
+  "alias": []
+ },
+ {
+  "nom": "Starbucks",
+  "fichier": "logos/starbucks.svg",
+  "alias": []
+ },
+ {
+  "nom": "Uniqlo",
+  "fichier": "logos/uniqlo.svg",
+  "alias": []
+ },
+ {
+  "nom": "Zara",
+  "fichier": "logos/zara.svg",
+  "alias": []
+ }
+]
