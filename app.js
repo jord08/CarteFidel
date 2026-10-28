@@ -83,14 +83,33 @@ $('recherche').addEventListener('input', afficher);
 // --- Affichage d'un code ----------------------------------------------------
 async function dessiner(canvas, c) {
   await charger('lib/bwip-js-min.js');
-  const types = [c.format, /^\d{13}$/.test(c.code) ? 'ean13' : null, 'code128', 'qrcode'];
+  const types = c.mode === 'qrcode'
+    ? ['qrcode']
+    : [c.format, /^\d{13}$/.test(c.code) ? 'ean13' : null, 'code128', 'qrcode'];
   for (const t of types) {
     if (!t) continue;
     try {
-      bwipjs.toCanvas(canvas, { bcid: t, text: c.code, scale: 4, height: 18, includetext: false, paddingwidth: 8, paddingheight: 8 });
+      bwipjs.toCanvas(canvas, { bcid: t, text: c.code, scale: t === 'qrcode' ? 6 : 4, height: 18, includetext: false, paddingwidth: 8, paddingheight: 8 });
       return;
     } catch (e) { /* format suivant */ }
   }
+}
+
+// Bascule code-barres / QR code (choix mémorisé par carte).
+async function afficherCode(c) {
+  const qr = c.mode === 'qrcode';
+  $('mode-barres').setAttribute('aria-pressed', String(!qr));
+  $('mode-qr').setAttribute('aria-pressed', String(qr));
+  $('canvas-code').classList.toggle('qr', qr);
+  await dessiner($('canvas-code'), c);
+}
+for (const [id, mode] of [['mode-barres', undefined], ['mode-qr', 'qrcode']]) {
+  $(id).addEventListener('click', async () => {
+    if (!ouverte || ouverte.mode === mode) return;
+    ouverte.mode = mode;
+    await afficherCode(ouverte);
+    enregistrer(ouverte);
+  });
 }
 
 let ouverte = null;
@@ -102,7 +121,7 @@ async function ouvrir(c) {
   $('dlg-code').showModal();
   // Garde l'écran allumé pendant le passage en caisse.
   try { verrou = await navigator.wakeLock?.request('screen'); } catch (e) { /* non supporté */ }
-  await dessiner($('canvas-code'), c);
+  await afficherCode(c);
   c.dernier = Date.now();
   c.usages = (c.usages || 0) + 1;
   enregistrer(c);
