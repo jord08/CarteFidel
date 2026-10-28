@@ -293,13 +293,34 @@ $('form-ajout').addEventListener('submit', async (e) => {
 // --- Export / import --------------------------------------------------------
 $('menu').addEventListener('click', () => { $('menu-statut').textContent = ''; $('dlg-menu').showModal(); });
 $('menu-fermer').addEventListener('click', () => $('dlg-menu').close());
-$('exporter').addEventListener('click', () => {
-  const blob = new Blob([JSON.stringify({ version: 1, cartes }, null, 1)], { type: 'application/json' });
+const nomFichier = () => `cartes-${new Date().toISOString().slice(0, 10)}.json`;
+const contenuExport = () => JSON.stringify({ version: 1, cartes }, null, 1);
+function telecharger() {
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `cartes-${new Date().toISOString().slice(0, 10)}.json`;
+  a.href = URL.createObjectURL(new Blob([contenuExport()], { type: 'application/json' }));
+  a.download = nomFichier();
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+$('exporter').addEventListener('click', telecharger);
+
+// Partage via la feuille de partage du système (messagerie, e-mail, Drive…).
+$('partager').addEventListener('click', async () => {
+  if (!cartes.length) { $('menu-statut').textContent = 'Aucune carte à partager.'; return; }
+  // Selon le système, le type JSON n'est pas toujours accepté : repli sur du texte brut.
+  const candidats = ['application/json', 'text/plain'].map((type) => new File([contenuExport()], nomFichier(), { type }));
+  const fichier = candidats.find((f) => navigator.canShare?.({ files: [f] }));
+  if (!fichier) {
+    telecharger();
+    $('menu-statut').textContent = 'Partage indisponible : fichier téléchargé, envoyez-le manuellement.';
+    return;
+  }
+  try {
+    await navigator.share({ files: [fichier], title: 'Mes cartes de fidélité' });
+    $('menu-statut').textContent = '';
+  } catch (e) {
+    if (e.name !== 'AbortError') $('menu-statut').textContent = 'Le partage a échoué.';
+  }
 });
 $('importer').addEventListener('change', async (e) => {
   const f = e.target.files[0];

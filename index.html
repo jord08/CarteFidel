@@ -81,10 +81,13 @@
 
 <dialog id="dlg-menu">
   <h2>Sauvegarde</h2>
-  <p class="aide">Vos cartes sont stockées sur ce téléphone. Exportez-les pour les conserver ou les transférer.</p>
+  <p class="aide">Vos cartes sont stockées sur ce téléphone. Partagez-les avec un proche, ou exportez-les pour les conserver.</p>
   <div class="deux">
-    <button type="button" id="exporter">Exporter</button>
-    <label class="btn-fichier">Importer
+    <button type="button" id="partager">📤 Partager mes cartes</button>
+  </div>
+  <div class="deux">
+    <button type="button" id="exporter" class="secondaire">Exporter</button>
+    <label class="btn-fichier secondaire">Importer
       <input id="importer" type="file" accept="application/json,.json" hidden></label>
   </div>
   <p id="menu-statut" class="aide" role="status"></p>

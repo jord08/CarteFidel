@@ -35,3 +35,4 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .bascule { display: flex; margin: .75rem auto 0; width: fit-content; border: 1px solid #7b2d26; border-radius: 999px; overflow: hidden; }
 .bascule button { background: #fff; color: #7b2d26; border-radius: 0; padding: .45rem 1rem; }
 .bascule button[aria-pressed="true"] { background: #7b2d26; color: #fff; }
+.btn-fichier.secondaire { background: #888; }
