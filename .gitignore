@@ -1,0 +1,7 @@
+# Exports de cartes (menu ⋮ > Exporter / Partager) : ils contiennent les numéros de cartes de fidélité.
+# Ne jamais les commiter. Couvre aussi les doublons Android : « cartes-2026-10-28 (1).json ».
+cartes-*.json
+cartes-*.txt
+
+# Fichiers temporaires des tests dans le navigateur (captures, exports téléchargés).
+.playwright-mcp/
