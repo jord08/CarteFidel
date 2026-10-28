@@ -2,26 +2,90 @@
 
 const $ = (id) => document.getElementById(id);
 const ANCIENNE_CLE = 'cartefidel-cartes';
+const MODE_QR = 'qrcode';
+const TAILLE_LOGO_MAX = 300; // px, pour les logos importés par l'utilisateur
+const TAILLE_IMPORT_MAX = 10 * 1024 * 1024; // octets
+
+// --- Utilitaires ------------------------------------------------------------
+// Comparaison de noms : sans accents, majuscules ni ponctuation.
+const normaliser = (s) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+const nouvelId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const fermerAvec = (idBouton, idDialog) => $(idBouton).addEventListener('click', () => $(idDialog).close());
+const couperFlux = (flux) => flux?.getTracks().forEach((piste) => piste.stop());
+async function lireJson(url) {
+  const reponse = await fetch(url);
+  if (!reponse.ok) throw new Error(`${url} : ${reponse.status}`);
+  return reponse.json();
+}
+const lireFichier = (f) => new Promise((ok, ko) => {
+  const lecteur = new FileReader();
+  lecteur.onload = () => ok(lecteur.result); lecteur.onerror = ko;
+  lecteur.readAsDataURL(f);
+});
+
+// Réduit l'image pour le stockage local
+function reduire(url, max = TAILLE_LOGO_MAX) {
+  return new Promise((ok) => {
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * k); canvas.height = Math.round(img.height * k);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      ok(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => ok(url);
+    img.src = url;
+  });
+}
+
+// --- Cartes : forme et validation -------------------------------------------
+// Une carte : { id, nom, code, format, logo, mode?, dernier, usages, logoAuto, logoPerso, sansLogo }
+//  - format : symbologie bwip-js détectée au scan (sinon deviné)
+//  - mode : MODE_QR si l'utilisateur préfère le QR code (absent = code-barres)
+//  - logoAuto / logoPerso : origine du logo (catalogue / image de l'utilisateur) ; sansLogo : logo retiré exprès
+// Rend une carte propre (types vérifiés, champs inconnus écartés) ou null si elle est inutilisable.
+// Sert aussi bien à la lecture de la base qu'à l'import d'un fichier.
+function nettoyerCarte(c) {
+  if (!c || typeof c !== 'object') return null;
+  const nom = typeof c.nom === 'string' ? c.nom.trim() : '';
+  const code = typeof c.code === 'string' || typeof c.code === 'number' ? String(c.code).trim() : '';
+  if (!nom || !code) return null;
+  const carte = {
+    id: typeof c.id === 'string' && c.id ? c.id : nouvelId(),
+    nom,
+    code,
+    format: typeof c.format === 'string' ? c.format : null,
+    logo: typeof c.logo === 'string' && c.logo.startsWith('data:image/') && c.logo.length < 600000 ? c.logo : null,
+    dernier: Number.isFinite(c.dernier) ? c.dernier : 0,
+    usages: Number.isFinite(c.usages) ? c.usages : 0,
+    logoAuto: c.logoAuto === true,
+    logoPerso: c.logoPerso === true,
+    sansLogo: c.sansLogo === true,
+  };
+  if (c.mode === MODE_QR) carte.mode = MODE_QR;
+  return carte;
+}
 
 // --- Stockage (IndexedDB) ---------------------------------------------------
 const baseOuverte = new Promise((ok, ko) => {
-  const req = indexedDB.open('cartefidel', 1);
-  req.onupgradeneeded = () => req.result.createObjectStore('cartes', { keyPath: 'id' });
-  req.onsuccess = () => ok(req.result);
-  req.onerror = () => ko(req.error);
+  const ouverture = indexedDB.open('cartefidel', 1);
+  ouverture.onupgradeneeded = () => ouverture.result.createObjectStore('cartes', { keyPath: 'id' });
+  ouverture.onsuccess = () => ok(ouverture.result);
+  ouverture.onerror = () => ko(ouverture.error);
 });
-async function tx(mode, fn) {
+async function transaction(mode, fn) {
   const db = await baseOuverte;
   return new Promise((ok, ko) => {
     const t = db.transaction('cartes', mode);
-    const res = fn(t.objectStore('cartes'));
-    t.oncomplete = () => ok(res && res.result);
+    const requete = fn(t.objectStore('cartes'));
+    t.oncomplete = () => ok(requete && requete.result);
     t.onerror = t.onabort = () => ko(t.error);
   });
 }
-const toutes = () => tx('readonly', (s) => s.getAll());
-const enregistrer = (c) => tx('readwrite', (s) => s.put(c));
-const retirer = (id) => tx('readwrite', (s) => s.delete(id));
+const toutes = () => transaction('readonly', (s) => s.getAll());
+const enregistrer = (c) => transaction('readwrite', (s) => s.put(c));
+const retirer = (id) => transaction('readwrite', (s) => s.delete(id));
 
 // Reprise des cartes de l'ancienne version (localStorage), une seule fois.
 async function migrer() {
@@ -39,98 +103,117 @@ const charger = (src) => charges[src] ||= new Promise((ok, ko) => {
   s.src = src; s.onload = ok; s.onerror = () => { delete charges[src]; ko(new Error(src)); };
   document.head.append(s);
 });
+const optionsZXing = () => new Map([[ZXing.DecodeHintType.TRY_HARDER, true]]);
 
-// Formats ZXing / BarcodeDetector -> symbologies bwip-js
+// Formats ZXing / BarcodeDetector (en minuscules) -> symbologies bwip-js
 const BWIP = {
-  EAN_13: 'ean13', ean_13: 'ean13', EAN_8: 'ean8', ean_8: 'ean8',
-  UPC_A: 'upca', upc_a: 'upca', UPC_E: 'upce', upc_e: 'upce',
-  CODE_128: 'code128', code_128: 'code128', CODE_39: 'code39', code_39: 'code39',
-  ITF: 'interleaved2of5', itf: 'interleaved2of5', CODABAR: 'rationalizedCodabar', codabar: 'rationalizedCodabar',
-  QR_CODE: 'qrcode', qr_code: 'qrcode', DATA_MATRIX: 'datamatrix', data_matrix: 'datamatrix',
-  PDF_417: 'pdf417', pdf417: 'pdf417', AZTEC: 'azteccode', aztec: 'azteccode',
+  ean_13: 'ean13', ean_8: 'ean8', upc_a: 'upca', upc_e: 'upce',
+  code_128: 'code128', code_39: 'code39', itf: 'interleaved2of5', codabar: 'rationalizedCodabar',
+  qr_code: 'qrcode', data_matrix: 'datamatrix', pdf_417: 'pdf417', pdf417: 'pdf417', aztec: 'azteccode',
 };
+const symbologie = (format) => BWIP[String(format).toLowerCase()] || null;
 let formatDetecte = null;
 
 // --- Liste ------------------------------------------------------------------
 let cartes = [];
 
 function afficher() {
-  const filtre = $('recherche').value.trim().toLowerCase();
+  const filtre = normaliser($('recherche').value);
   $('recherche').hidden = cartes.length < 6;
   $('vide').hidden = cartes.length > 0;
-  const g = $('grille');
-  g.replaceChildren();
+  const grille = $('grille');
+  grille.replaceChildren();
   const liste = cartes
-    .filter((c) => c.nom.toLowerCase().includes(filtre))
-    .sort((a, b) => (b.usages || 0) - (a.usages || 0) || (b.dernier || 0) - (a.dernier || 0));
+    .filter((c) => normaliser(c.nom).includes(filtre))
+    .sort((a, b) => b.usages - a.usages || b.dernier - a.dernier);
   for (const c of liste) {
-    const b = document.createElement('button');
-    b.className = 'carte';
-    b.type = 'button';
+    const bouton = document.createElement('button');
+    bouton.className = 'carte';
+    bouton.type = 'button';
     if (c.logo) {
       const img = document.createElement('img');
       img.src = c.logo; img.alt = c.nom;
-      b.append(img);
+      bouton.append(img);
     } else {
-      b.textContent = c.nom;
+      bouton.textContent = c.nom;
     }
-    b.addEventListener('click', () => ouvrir(c));
-    g.append(b);
+    bouton.addEventListener('click', () => ouvrir(c));
+    grille.append(bouton);
   }
 }
 $('recherche').addEventListener('input', afficher);
 
 // --- Affichage d'un code ----------------------------------------------------
+// Dessine le code et renvoie la symbologie réellement utilisée (ou null si rien ne convient).
 async function dessiner(canvas, c) {
   await charger('lib/bwip-js-min.js');
-  const types = c.mode === 'qrcode'
+  canvas.width = canvas.width; // efface le dessin de la carte précédente
+  const types = c.mode === MODE_QR
     ? ['qrcode']
     : [c.format, /^\d{13}$/.test(c.code) ? 'ean13' : null, 'code128', 'qrcode'];
   for (const t of types) {
     if (!t) continue;
     try {
       bwipjs.toCanvas(canvas, { bcid: t, text: c.code, scale: t === 'qrcode' ? 6 : 4, height: 18, includetext: false, paddingwidth: 8, paddingheight: 8 });
-      return;
+      return t;
     } catch (e) { /* format suivant */ }
   }
+  return null;
 }
 
-// Bascule code-barres / QR code (choix mémorisé par carte).
+// Bascule code-barres / QR code (choix mémorisé par carte). L'interrupteur reflète ce qui est vraiment dessiné.
 async function afficherCode(c) {
-  const qr = c.mode === 'qrcode';
+  const dessine = await dessiner($('canvas-code'), c);
+  const qr = dessine === 'qrcode';
   $('mode-barres').setAttribute('aria-pressed', String(!qr));
   $('mode-qr').setAttribute('aria-pressed', String(qr));
   $('canvas-code').classList.toggle('qr', qr);
-  await dessiner($('canvas-code'), c);
+  $('bascule').hidden = c.format === 'qrcode'; // la carte est déjà un QR : rien à basculer
 }
-for (const [id, mode] of [['mode-barres', undefined], ['mode-qr', 'qrcode']]) {
+for (const [id, mode] of [['mode-barres', undefined], ['mode-qr', MODE_QR]]) {
   $(id).addEventListener('click', async () => {
     if (!ouverte || ouverte.mode === mode) return;
-    ouverte.mode = mode;
+    if (mode) ouverte.mode = mode; else delete ouverte.mode;
     await afficherCode(ouverte);
-    enregistrer(ouverte);
+    enregistrer(ouverte).catch(() => {});
   });
 }
 
 let ouverte = null;
 let verrou = null;
+
+// Garde l'écran allumé pendant le passage en caisse.
+async function verrouillerEcran() {
+  try {
+    const v = await navigator.wakeLock?.request('screen');
+    if (!v) return;
+    if (!$('dlg-code').open) { v.release().catch(() => {}); return; } // fenêtre fermée pendant l'attente
+    verrou = v;
+    v.addEventListener('release', () => { if (verrou === v) verrou = null; });
+  } catch (e) { /* non supporté ou refusé */ }
+}
+// Chrome libère le verrou quand la page passe en arrière-plan : on le reprend au retour.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && $('dlg-code').open && !verrou) verrouillerEcran();
+});
+
 async function ouvrir(c) {
   ouverte = c;
   $('code-nom').textContent = c.nom;
   $('code-num').textContent = c.code;
   $('dlg-code').showModal();
-  // Garde l'écran allumé pendant le passage en caisse.
-  try { verrou = await navigator.wakeLock?.request('screen'); } catch (e) { /* non supporté */ }
-  await afficherCode(c);
+  // L'usage est compté tout de suite ; le code s'affiche sans attendre le verrou d'écran.
   c.dernier = Date.now();
-  c.usages = (c.usages || 0) + 1;
-  enregistrer(c);
+  c.usages += 1;
+  enregistrer(c).catch(() => {});
+  verrouillerEcran();
+  await afficherCode(c);
 }
 $('dlg-code').addEventListener('close', () => {
   verrou?.release().catch(() => {}); verrou = null;
   afficher();
 });
-$('fermer').addEventListener('click', () => $('dlg-code').close());
+fermerAvec('fermer', 'dlg-code');
 $('supprimer').addEventListener('click', async () => {
   if (ouverte && confirm(`Supprimer ${ouverte.nom} ?`)) {
     await retirer(ouverte.id);
@@ -139,75 +222,69 @@ $('supprimer').addEventListener('click', async () => {
   }
 });
 
-// --- Modification du nom ---------------------------------------------------
-$('modifier').addEventListener('click', () => {
-  $('dlg-code').close();
-  $('nom-edit').value = ouverte.nom;
-  $('dlg-edit').showModal();
-  chargerLogos();
-});
-$('annuler-edit').addEventListener('click', () => $('dlg-edit').close());
-$('form-edit').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const nom = $('nom-edit').value.trim();
-  if (!nom) return;
-  await chargerLogos();
-  ouverte.nom = nom;
-  if (!ouverte.logo) ouverte.logo = await logoPour(nom);
-  await enregistrer(ouverte);
-  afficher();
-  $('dlg-edit').close();
-});
-
 // --- Logos d'enseignes (logos/index.json) -----------------------------------
-const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
 let logos = null;
-let logoAuto = null;
+let logoAuto = null; // logo proposé dans le formulaire d'ajout
 async function chargerLogos() {
   if (logos) return;
   try {
-    logos = await (await fetch('logos/index.json')).json();
+    logos = await lireJson('logos/index.json');
     $('enseignes').replaceChildren(...logos.map((l) => Object.assign(document.createElement('option'), { value: l.nom })));
-  } catch (e) { logos = []; }
+  } catch (e) { /* hors-ligne ou fichier absent : nouvel essai à la prochaine demande */ }
 }
+const trouverLogo = (nom) => {
+  const n = normaliser(nom);
+  return n ? logos?.find((l) => [l.nom, ...(l.alias || [])].some((v) => normaliser(v) === n)) : undefined;
+};
 // Logo (data URL) correspondant à un nom d'enseigne, ou null.
 async function logoPour(nom) {
-  const n = norm(nom);
-  const l = n && logos?.find((x) => [x.nom, ...x.alias].some((v) => norm(v) === n));
+  const l = trouverLogo(nom);
   if (!l) return null;
-  const blob = await (await fetch(l.fichier)).blob();
+  const reponse = await fetch(l.fichier);
+  if (!reponse.ok) throw new Error(`${l.fichier} : ${reponse.status}`);
+  const blob = await reponse.blob();
   if (l.fond) return logoSurFond(blob, l);
   // Le type est forcé : certains serveurs ne déclarent pas image/svg+xml.
   return lireFichier(l.fichier.endsWith('.svg') ? new Blob([blob], { type: 'image/svg+xml' }) : blob);
 }
 // Logos clairs sur transparent : fond de couleur et recadrage (l.fond, l.recadrage).
 async function logoSurFond(blob, l) {
-  const bmp = await createImageBitmap(blob);
-  const [x, y, w, h] = l.recadrage || [0, 0, bmp.width, bmp.height];
-  const cv = document.createElement('canvas');
+  const image = await createImageBitmap(blob);
+  const [x, y, w, h] = l.recadrage || [0, 0, image.width, image.height];
+  const canvas = document.createElement('canvas');
   const marge = Math.round(h * 0.3);
-  cv.width = w + 2 * marge; cv.height = h + 2 * marge;
-  const ctx = cv.getContext('2d');
+  canvas.width = w + 2 * marge; canvas.height = h + 2 * marge;
+  const ctx = canvas.getContext('2d');
   ctx.fillStyle = l.fond;
-  ctx.fillRect(0, 0, cv.width, cv.height);
-  ctx.drawImage(bmp, x, y, w, h, marge, marge, w, h);
-  return cv.toDataURL('image/png');
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(image, x, y, w, h, marge, marge, w, h);
+  return canvas.toDataURL('image/png');
 }
+let jetonProposition = 0;
 async function proposerLogo() {
-  logoAuto = $('logo').files[0] ? null : await logoPour($('nom').value);
+  const jeton = ++jetonProposition;
+  const propose = $('logo').files[0] ? null : await logoPour($('nom').value).catch(() => null);
+  if (jeton !== jetonProposition) return; // une saisie plus récente a pris le relais
+  logoAuto = propose;
   $('logo-apercu').hidden = !logoAuto;
   if (logoAuto) $('logo-apercu').src = logoAuto;
 }
 // Ajoute le logo aux cartes qui n'en ont pas, d'après leur nom.
 async function completerLogos() {
   await chargerLogos();
+  if (!logos) return;
   let change = false;
   for (const c of cartes) {
-    if (c.logo) continue;
     try {
+      if (c.logo) {
+        // Carte créée avant le suivi de l'origine du logo : le logo d'une enseigne connue est un logo automatique.
+        if (!c.logoAuto && !c.logoPerso && trouverLogo(c.nom)) { c.logoAuto = true; await enregistrer(c); }
+        continue;
+      }
+      if (c.sansLogo) continue;
       const logo = await logoPour(c.nom);
       if (!logo) continue;
-      c.logo = logo;
+      Object.assign(c, { logo, logoAuto: true });
       await enregistrer(c);
       change = true;
     } catch (e) { /* réessai au prochain démarrage */ }
@@ -216,6 +293,43 @@ async function completerLogos() {
 }
 $('nom').addEventListener('input', proposerLogo);
 $('logo').addEventListener('change', proposerLogo);
+
+// --- Modification d'une carte (nom et logo) ---------------------------------
+$('modifier').addEventListener('click', () => {
+  $('dlg-code').close();
+  $('nom-edit').value = ouverte.nom;
+  $('logo-edit').value = '';
+  $('retirer-logo').checked = false;
+  $('retirer-ligne').hidden = !ouverte.logo;
+  $('logo-edit-apercu').hidden = !ouverte.logo;
+  if (ouverte.logo) $('logo-edit-apercu').src = ouverte.logo;
+  $('dlg-edit').showModal();
+  chargerLogos();
+});
+fermerAvec('annuler-edit', 'dlg-edit');
+$('form-edit').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const nom = $('nom-edit').value.trim();
+  if (!nom) return;
+  const c = ouverte;
+  const fichier = $('logo-edit').files[0];
+  await chargerLogos();
+  c.nom = nom;
+  if (fichier) {
+    // Image choisie par l'utilisateur : elle prime et n'est plus jamais remplacée.
+    Object.assign(c, { logo: await reduire(await lireFichier(fichier)), logoPerso: true, logoAuto: false, sansLogo: false });
+  } else if ($('retirer-logo').checked) {
+    Object.assign(c, { logo: null, logoPerso: false, logoAuto: false, sansLogo: true });
+  } else if (!c.logoPerso) {
+    // Logo automatique : il suit le nouveau nom (celui de la nouvelle enseigne, ou aucun).
+    const auto = await logoPour(nom).catch(() => null);
+    if (auto) Object.assign(c, { logo: auto, logoAuto: true, sansLogo: false });
+    else if (c.logoAuto) Object.assign(c, { logo: null, logoAuto: false });
+  }
+  await enregistrer(c);
+  afficher();
+  $('dlg-edit').close();
+});
 
 // --- Ajout ------------------------------------------------------------------
 $('ajouter').addEventListener('click', () => {
@@ -227,68 +341,47 @@ $('ajouter').addEventListener('click', () => {
   $('dlg-ajout').showModal();
   chargerLogos();
 });
-$('annuler').addEventListener('click', () => $('dlg-ajout').close());
+fermerAvec('annuler', 'dlg-ajout');
 
-const lireFichier = (f) => new Promise((ok, ko) => {
-  const r = new FileReader();
-  r.onload = () => ok(r.result); r.onerror = ko;
-  r.readAsDataURL(f);
-});
-
-// Réduit l'image pour le stockage local
-function reduire(url, max = 300) {
-  return new Promise((ok) => {
-    const img = new Image();
-    img.onload = () => {
-      const k = Math.min(1, max / Math.max(img.width, img.height));
-      const cv = document.createElement('canvas');
-      cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
-      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
-      ok(cv.toDataURL('image/png'));
-    };
-    img.onerror = () => ok(url);
-    img.src = url;
-  });
+// Applique un code détecté (photo ou caméra) au formulaire d'ajout.
+function appliquerCodeDetecte(texte, format) {
+  $('code').value = texte;
+  formatDetecte = symbologie(format);
+  $('statut').textContent = '✅ Code détecté.';
 }
 
 async function scanner(fichier) {
   $('statut').textContent = 'Analyse de l\'image…';
   try {
     if ('BarcodeDetector' in window) {
-      const bmp = await createImageBitmap(fichier);
-      const r = await new BarcodeDetector().detect(bmp);
-      if (r.length) return fin(r[0].rawValue, r[0].format);
+      const image = await createImageBitmap(fichier);
+      const r = await new BarcodeDetector().detect(image);
+      if (r.length) return appliquerCodeDetecte(r[0].rawValue, r[0].format);
     }
   } catch (e) { /* repli sur ZXing */ }
   try {
     await charger('lib/zxing.min.js');
     const url = await lireFichier(fichier);
-    const hints = new Map([[ZXing.DecodeHintType.TRY_HARDER, true]]);
-    const r = await new ZXing.BrowserMultiFormatReader(hints).decodeFromImageUrl(url);
-    return fin(r.getText(), ZXing.BarcodeFormat[r.getBarcodeFormat()]);
+    const r = await new ZXing.BrowserMultiFormatReader(optionsZXing()).decodeFromImageUrl(url);
+    return appliquerCodeDetecte(r.getText(), ZXing.BarcodeFormat[r.getBarcodeFormat()]);
   } catch (e) {
     $('statut').textContent = 'Aucun code détecté. Réessayez avec une photo plus nette ou saisissez le numéro.';
   }
-}
-function fin(texte, format) {
-  $('code').value = texte;
-  formatDetecte = BWIP[format] || null;
-  $('statut').textContent = '✅ Code détecté.';
 }
 for (const id of ['photo-camera', 'photo-galerie']) {
   $(id).addEventListener('change', (e) => { if (e.target.files[0]) scanner(e.target.files[0]); });
 }
 
 // --- Scan en direct (caméra) ------------------------------------------------
-let scan = null; // session en cours : { flux, minuteur, actif }
+let sessionScan = null; // session en cours : { flux, minuteur, actif }
 
 function arreterScan() {
-  if (!scan) return;
-  const s = scan;
-  scan = null;
+  if (!sessionScan) return;
+  const s = sessionScan;
+  sessionScan = null;
   s.actif = false;
   clearTimeout(s.minuteur);
-  s.flux?.getTracks().forEach((t) => t.stop());
+  couperFlux(s.flux);
   $('video').srcObject = null;
 }
 
@@ -303,97 +396,112 @@ function erreurCamera(e) {
   }
 }
 
+async function ouvrirCamera() {
+  const flux = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+    audio: false,
+  });
+  // Mise au point continue quand la caméra le permet (codes-barres plus rapides à lire).
+  try {
+    const piste = flux.getVideoTracks()[0];
+    if (piste.getCapabilities?.().focusMode?.includes('continuous')) await piste.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+  } catch (e) { /* non supporté */ }
+  return flux;
+}
+
+// Renvoie lire() : { texte, format } si un code est visible sur l'image courante de la vidéo, sinon null.
+async function creerLecteur(video) {
+  if ('BarcodeDetector' in window) {
+    const detecteur = new BarcodeDetector();
+    return async () => {
+      const r = await detecteur.detect(video);
+      return r.length ? { texte: r[0].rawValue, format: r[0].format } : null;
+    };
+  }
+  await charger('lib/zxing.min.js');
+  const lecteur = new ZXing.MultiFormatReader();
+  lecteur.setHints(optionsZXing());
+  const image = document.createElement('canvas');
+  const ctx = image.getContext('2d', { willReadFrequently: true });
+  return async () => {
+    if (!video.videoWidth) return null;
+    image.width = video.videoWidth;
+    image.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+    try {
+      const r = lecteur.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(image))));
+      return { texte: r.getText(), format: ZXing.BarcodeFormat[r.getBarcodeFormat()] };
+    } catch (e) { return null; } // aucun code sur cette image
+  };
+}
+
+// Une lecture n'est acceptée qu'après deux résultats identiques d'affilée (évite les fausses lectures).
+function confirmerLecture(accepter) {
+  let dernier = null;
+  let lecturesIdentiques = 0;
+  return ({ texte, format }) => {
+    if (!texte) return;
+    lecturesIdentiques = texte === dernier ? lecturesIdentiques + 1 : 1;
+    dernier = texte;
+    if (lecturesIdentiques >= 2) accepter(texte, format);
+  };
+}
+
 async function demarrerScan() {
   $('scan-statut').textContent = 'Démarrage de la caméra…';
   $('dlg-scan').showModal();
-  const s = scan = { flux: null, minuteur: null, actif: true };
+  const s = sessionScan = { flux: null, minuteur: null, actif: true };
   try {
-    s.flux = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: false,
-    });
-    if (scan !== s) { s.flux.getTracks().forEach((t) => t.stop()); return; } // annulé pendant l'attente
-    // Mise au point continue quand la caméra le permet (codes-barres plus rapides à lire).
-    try {
-      const piste = s.flux.getVideoTracks()[0];
-      if (piste.getCapabilities?.().focusMode?.includes('continuous')) await piste.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
-    } catch (e) { /* non supporté */ }
-    $('scan-statut').textContent = 'Placez le code-barres dans le cadre.';
-
-    // Une lecture n'est acceptée qu'après deux résultats identiques d'affilée (évite les fausses lectures).
-    let dernier = null;
-    let vu = 0;
-    const trouve = (texte, format) => {
-      if (!s.actif || !texte) return;
-      vu = texte === dernier ? vu + 1 : 1;
-      dernier = texte;
-      if (vu < 2) return;
-      arreterScan();
-      $('dlg-scan').close();
-      navigator.vibrate?.(60);
-      fin(texte, format);
-    };
-
+    s.flux = await ouvrirCamera();
+    if (sessionScan !== s) { couperFlux(s.flux); return; } // annulé pendant l'attente
     const video = $('video');
     video.srcObject = s.flux;
     await video.play();
-
-    // lire() renvoie [texte, format] si un code est visible sur l'image courante, sinon null.
-    let lire;
-    if ('BarcodeDetector' in window) {
-      const detecteur = new BarcodeDetector();
-      lire = async () => {
-        const r = await detecteur.detect(video);
-        return r.length ? [r[0].rawValue, r[0].format] : null;
-      };
-    } else {
-      await charger('lib/zxing.min.js');
-      if (!s.actif) return;
-      const lecteur = new ZXing.MultiFormatReader();
-      lecteur.setHints(new Map([[ZXing.DecodeHintType.TRY_HARDER, true]]));
-      const image = document.createElement('canvas');
-      const ctx = image.getContext('2d', { willReadFrequently: true });
-      lire = async () => {
-        if (!video.videoWidth) return null;
-        image.width = video.videoWidth;
-        image.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0);
-        try {
-          const r = lecteur.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(image))));
-          return [r.getText(), ZXing.BarcodeFormat[r.getBarcodeFormat()]];
-        } catch (e) { return null; } // aucun code sur cette image
-      };
-    }
+    $('scan-statut').textContent = 'Placez le code-barres dans le cadre.';
+    const lire = await creerLecteur(video);
+    if (!s.actif) return;
+    const confirmer = confirmerLecture((texte, format) => {
+      arreterScan();
+      $('dlg-scan').close();
+      navigator.vibrate?.(60);
+      appliquerCodeDetecte(texte, format);
+    });
     const boucle = async () => {
       if (!s.actif) return;
       try {
         const lu = await lire();
-        if (lu) trouve(lu[0], lu[1]);
+        if (lu && s.actif) confirmer(lu);
       } catch (e) { /* image pas encore prête */ }
       if (s.actif) s.minuteur = setTimeout(boucle, 200);
     };
     boucle();
   } catch (e) {
-    if (scan === s) $('scan-statut').textContent = erreurCamera(e);
+    if (sessionScan === s) $('scan-statut').textContent = erreurCamera(e);
   }
 }
 $('scan-direct').addEventListener('click', demarrerScan);
-$('scan-annuler').addEventListener('click', () => $('dlg-scan').close());
+fermerAvec('scan-annuler', 'dlg-scan');
 $('dlg-scan').addEventListener('close', arreterScan);
 
 $('form-ajout').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const f = $('logo').files[0];
-  const logo = f ? await reduire(await lireFichier(f)) : logoAuto;
-  const c = { id: Date.now().toString(36), nom: $('nom').value.trim(), code: $('code').value.trim(), format: formatDetecte, logo, dernier: Date.now() };
+  const fichier = $('logo').files[0];
+  const logo = fichier ? await reduire(await lireFichier(fichier)) : logoAuto;
+  const c = nettoyerCarte({
+    id: nouvelId(), nom: $('nom').value, code: $('code').value, format: formatDetecte,
+    logo, logoPerso: !!fichier, logoAuto: !fichier && !!logoAuto, dernier: Date.now(),
+  });
+  if (!c) { $('statut').textContent = 'Le nom et le numéro sont obligatoires.'; return; }
+  const doublon = cartes.find((x) => x.code === c.code);
+  if (doublon && !confirm(`Une carte « ${doublon.nom} » a déjà ce numéro. L'ajouter quand même ?`)) return;
   await enregistrer(c);
   cartes.push(c);
   afficher();
   $('dlg-ajout').close();
 });
 
-// --- Export / import --------------------------------------------------------
-// Numéro de version : celui du cache du service worker (« cartefidel-vN »), seule source de vérité.
+// --- Menu : version, sauvegarde, partage ------------------------------------
+// Numéro de version : celui du cache du service worker (« cartefidel-vN », voir sw.js), seule source de vérité.
 async function afficherVersion() {
   let v = 'inconnue';
   try {
@@ -407,26 +515,29 @@ $('menu').addEventListener('click', () => {
   afficherVersion();
   $('dlg-menu').showModal();
 });
-$('menu-fermer').addEventListener('click', () => $('dlg-menu').close());
+fermerAvec('menu-fermer', 'dlg-menu');
+
 const nomFichier = () => `cartes-${new Date().toISOString().slice(0, 10)}.json`;
 const contenuExport = () => JSON.stringify({ version: 1, cartes }, null, 1);
 function telecharger(contenu = contenuExport()) {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([contenu], { type: 'application/json' }));
-  a.download = nomFichier();
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  const lien = document.createElement('a');
+  lien.href = URL.createObjectURL(new Blob([contenu], { type: 'application/json' }));
+  lien.download = nomFichier();
+  lien.click();
+  setTimeout(() => URL.revokeObjectURL(lien.href), 1000);
 }
 $('exporter').addEventListener('click', () => telecharger());
 
+// Fichier de partage allégé : sans l'historique d'usage de l'expéditeur, et sans les logos d'enseignes
+// connues (retrouvés par nom à l'import ; ils pèsent l'essentiel du fichier et certains systèmes refusent
+// les gros fichiers). Les logos choisis par l'utilisateur sont conservés.
+function pourPartage(c) {
+  const { usages, dernier, ...reste } = c;
+  return !c.logoPerso && c.logo && trouverLogo(c.nom) ? { ...reste, logo: null } : reste;
+}
+const contenuPartage = () => JSON.stringify({ version: 1, cartes: cartes.map(pourPartage) });
+
 // Partage via la feuille de partage du système (messagerie, e-mail, Drive…).
-// Fichier de partage allégé : les logos d'enseignes connues sont retrouvés par nom à l'import,
-// inutile de les embarquer (ils pèsent l'essentiel du fichier, et certains systèmes refusent les gros fichiers).
-const logoConnu = (nom) => !!logos?.some((l) => [l.nom, ...l.alias].some((v) => norm(v) === norm(nom)));
-const contenuPartage = () => JSON.stringify({
-  version: 1,
-  cartes: cartes.map((c) => (c.logo && logoConnu(c.nom) ? { ...c, logo: null } : c)),
-});
 $('partager').addEventListener('click', async () => {
   if (!cartes.length) { $('menu-statut').textContent = 'Aucune carte à partager.'; return; }
   // Évite d'attendre quand la liste de logos est déjà chargée (le partage doit suivre le geste de l'utilisateur).
@@ -450,30 +561,46 @@ $('partager').addEventListener('click', async () => {
     $('menu-statut').textContent = `Le partage a échoué (${e.name}) : fichier téléchargé, envoyez-le manuellement.`;
   }
 });
+
+// Import : vérifie chaque carte, n'écrase jamais une carte existante (même identifiant ou même numéro).
 $('importer').addEventListener('change', async (e) => {
-  const f = e.target.files[0];
-  if (!f) return;
+  const fichier = e.target.files[0];
+  if (!fichier) return;
   try {
-    const data = JSON.parse(await f.text());
-    const liste = (Array.isArray(data) ? data : data.cartes).filter((c) => c && c.id && c.nom && c.code);
-    for (const c of liste) {
+    if (fichier.size > TAILLE_IMPORT_MAX) throw new Error('fichier trop volumineux');
+    const data = JSON.parse(await fichier.text());
+    const brutes = Array.isArray(data) ? data : data?.cartes;
+    if (!Array.isArray(brutes)) throw new Error('format inconnu');
+    const codes = new Set(cartes.map((c) => c.code));
+    const ids = new Set(cartes.map((c) => c.id));
+    let ajoutees = 0;
+    let presentes = 0;
+    let invalides = 0;
+    for (const brute of brutes) {
+      const c = nettoyerCarte(brute);
+      if (!c) { invalides++; continue; }
+      if (codes.has(c.code) || ids.has(c.id)) { presentes++; continue; }
       await enregistrer(c);
-      cartes = cartes.filter((x) => x.id !== c.id).concat(c);
+      cartes.push(c); codes.add(c.code); ids.add(c.id);
+      ajoutees++;
     }
     afficher();
-    $('menu-statut').textContent = `✅ ${liste.length} carte(s) importée(s).`;
+    $('menu-statut').textContent = `✅ ${ajoutees} carte(s) importée(s)`
+      + (presentes ? ` · ${presentes} déjà présente(s)` : '')
+      + (invalides ? ` · ${invalides} ignorée(s) (invalide)` : '');
     completerLogos(); // retrouve les logos retirés du fichier de partage
   } catch (err) {
     $('menu-statut').textContent = 'Fichier invalide.';
+  } finally {
+    e.target.value = '';
   }
-  e.target.value = '';
 });
 
 // --- Démarrage --------------------------------------------------------------
 (async () => {
   try {
     await migrer();
-    cartes = await toutes();
+    cartes = (await toutes()).map(nettoyerCarte).filter(Boolean);
   } catch (e) {
     alert('Stockage indisponible : les cartes ne pourront pas être enregistrées.');
   }
