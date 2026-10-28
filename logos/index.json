@@ -10,6 +10,15 @@
   "alias": []
  },
  {
+  "nom": "Alice Délice",
+  "fichier": "logos/alicedelice.svg",
+  "alias": [
+   "Alice Delice",
+   "Alice Délices",
+   "Alice Delices"
+  ]
+ },
+ {
   "nom": "Amazon",
   "fichier": "logos/amazon.svg",
   "alias": []
@@ -18,6 +27,23 @@
   "nom": "Auchan",
   "fichier": "logos/auchan.svg",
   "alias": []
+ },
+ {
+  "nom": "Besson",
+  "fichier": "logos/besson.svg",
+  "alias": [
+   "Besson Chaussures",
+   "Besson Shoes"
+  ]
+ },
+ {
+  "nom": "Biok",
+  "fichier": "logos/biok.svg",
+  "alias": [
+   "Venta Biok",
+   "Ventabiok",
+   "Venta Biok Ibardin"
+  ]
  },
  {
   "nom": "Boulanger",
@@ -53,6 +79,15 @@
   "nom": "Castorama",
   "fichier": "logos/castorama.svg",
   "alias": []
+ },
+ {
+  "nom": "Cerf Dellier",
+  "fichier": "logos/cerfdellier.svg",
+  "alias": [
+   "Cerf delier",
+   "Cerf dellier",
+   "Cerf Delier"
+  ]
  },
  {
   "nom": "Coccimarket",
@@ -162,9 +197,25 @@
   "alias": []
  },
  {
+  "nom": "La Nouvelle Douane",
+  "fichier": "logos/nouvelledouane.png",
+  "alias": [
+   "Nouvelle Douane"
+  ]
+ },
+ {
   "nom": "Leroy Merlin",
   "fichier": "logos/leroymerlin.svg",
   "alias": []
+ },
+ {
+  "nom": "Les 3 Brasseurs",
+  "fichier": "logos/3brasseurs.png",
+  "alias": [
+   "3 Brasseurs",
+   "Trois Brasseurs",
+   "Les trois brasseurs"
+  ]
  },
  {
   "nom": "Lidl",
@@ -193,9 +244,27 @@
   ]
  },
  {
+  "nom": "Mise au Green",
+  "fichier": "logos/miseaugreen.svg",
+  "alias": [
+   "Mise au green",
+   "Miseaugreen"
+  ]
+ },
+ {
   "nom": "Monoprix",
   "fichier": "logos/monoprix.svg",
   "alias": []
+ },
+ {
+  "nom": "Nature et Découvertes",
+  "fichier": "logos/natureetdecouvertes.svg",
+  "alias": [
+   "Nature et découverte",
+   "Nature & Découvertes",
+   "Nature et Decouvertes",
+   "Nature et Decouverte"
+  ]
  },
  {
   "nom": "Netto",
