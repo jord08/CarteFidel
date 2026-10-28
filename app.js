@@ -120,6 +120,26 @@ $('supprimer').addEventListener('click', async () => {
   }
 });
 
+// --- Modification du nom ---------------------------------------------------
+$('modifier').addEventListener('click', () => {
+  $('dlg-code').close();
+  $('nom-edit').value = ouverte.nom;
+  $('dlg-edit').showModal();
+  chargerLogos();
+});
+$('annuler-edit').addEventListener('click', () => $('dlg-edit').close());
+$('form-edit').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const nom = $('nom-edit').value.trim();
+  if (!nom) return;
+  await chargerLogos();
+  ouverte.nom = nom;
+  if (!ouverte.logo) ouverte.logo = await logoPour(nom);
+  await enregistrer(ouverte);
+  afficher();
+  $('dlg-edit').close();
+});
+
 // --- Logos d'enseignes (logos/index.json) -----------------------------------
 const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
 let logos = null;
