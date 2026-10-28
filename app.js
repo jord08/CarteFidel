@@ -291,7 +291,20 @@ $('form-ajout').addEventListener('submit', async (e) => {
 });
 
 // --- Export / import --------------------------------------------------------
-$('menu').addEventListener('click', () => { $('menu-statut').textContent = ''; $('dlg-menu').showModal(); });
+// Numéro de version : celui du cache du service worker (« cartefidel-vN »), seule source de vérité.
+async function afficherVersion() {
+  let v = 'inconnue';
+  try {
+    const nom = (await caches.keys()).find((k) => k.startsWith('cartefidel-v'));
+    if (nom) v = nom.replace('cartefidel-v', '');
+  } catch (e) { /* cache indisponible */ }
+  $('version').textContent = `Version ${v}`;
+}
+$('menu').addEventListener('click', () => {
+  $('menu-statut').textContent = '';
+  afficherVersion();
+  $('dlg-menu').showModal();
+});
 $('menu-fermer').addEventListener('click', () => $('dlg-menu').close());
 const nomFichier = () => `cartes-${new Date().toISOString().slice(0, 10)}.json`;
 const contenuExport = () => JSON.stringify({ version: 1, cartes }, null, 1);

@@ -36,3 +36,4 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .bascule button { background: #fff; color: #7b2d26; border-radius: 0; padding: .45rem 1rem; }
 .bascule button[aria-pressed="true"] { background: #7b2d26; color: #fff; }
 .btn-fichier.secondaire { background: #888; }
+.version { margin: .75rem 0 0; font-size: .75rem; color: #888; text-align: right; }
