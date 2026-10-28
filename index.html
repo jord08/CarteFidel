@@ -27,7 +27,8 @@
   <form id="form-ajout" method="dialog">
     <h2>Nouvelle carte</h2>
     <label>Enseigne
-      <input id="nom" type="text" required placeholder="Ex : Carrefour"></label>
+      <input id="nom" type="text" required list="enseignes" autocomplete="off" placeholder="Ex : Carrefour"></label>
+    <datalist id="enseignes"></datalist>
     <div class="deux">
       <label class="btn-fichier">📷 Appareil photo
         <input id="photo-camera" type="file" accept="image/*" capture="environment" hidden></label>
@@ -38,8 +39,11 @@
     <p id="statut" class="aide" role="status"></p>
     <label>Numéro du code-barres
       <input id="code" type="text" inputmode="text" required placeholder="Détecté automatiquement ou à saisir"></label>
-    <label>Logo de l'enseigne (optionnel)
-      <input id="logo" type="file" accept="image/*"></label>
+    <div class="logo-ligne">
+      <img id="logo-apercu" alt="" hidden>
+      <label>Logo de l'enseigne (optionnel)
+        <input id="logo" type="file" accept="image/*"></label>
+    </div>
     <div class="deux">
       <button type="button" id="annuler" class="secondaire">Annuler</button>
       <button type="submit">Enregistrer</button>

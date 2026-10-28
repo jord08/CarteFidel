@@ -119,12 +119,58 @@ $('supprimer').addEventListener('click', async () => {
   }
 });
 
+// --- Logos d'enseignes (logos/index.json) -----------------------------------
+const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+let logos = null;
+let logoAuto = null;
+async function chargerLogos() {
+  if (logos) return;
+  try {
+    logos = await (await fetch('logos/index.json')).json();
+    $('enseignes').replaceChildren(...logos.map((l) => Object.assign(document.createElement('option'), { value: l.nom })));
+  } catch (e) { logos = []; }
+}
+// Logo (data URL) correspondant à un nom d'enseigne, ou null.
+async function logoPour(nom) {
+  const n = norm(nom);
+  const l = n && logos?.find((x) => [x.nom, ...x.alias].some((v) => norm(v) === n));
+  if (!l) return null;
+  const svg = await (await fetch(l.fichier)).text();
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+async function proposerLogo() {
+  logoAuto = $('logo').files[0] ? null : await logoPour($('nom').value);
+  $('logo-apercu').hidden = !logoAuto;
+  if (logoAuto) $('logo-apercu').src = logoAuto;
+}
+// Ajoute le logo aux cartes qui n'en ont pas, d'après leur nom.
+async function completerLogos() {
+  await chargerLogos();
+  let change = false;
+  for (const c of cartes) {
+    if (c.logo) continue;
+    try {
+      const logo = await logoPour(c.nom);
+      if (!logo) continue;
+      c.logo = logo;
+      await enregistrer(c);
+      change = true;
+    } catch (e) { /* réessai au prochain démarrage */ }
+  }
+  if (change) afficher();
+}
+$('nom').addEventListener('input', proposerLogo);
+$('logo').addEventListener('change', proposerLogo);
+
 // --- Ajout ------------------------------------------------------------------
 $('ajouter').addEventListener('click', () => {
   $('form-ajout').reset();
   $('statut').textContent = '';
   formatDetecte = null;
+  logoAuto = null;
+  $('logo-apercu').hidden = true;
   $('dlg-ajout').showModal();
+  chargerLogos();
 });
 $('annuler').addEventListener('click', () => $('dlg-ajout').close());
 
@@ -181,7 +227,7 @@ for (const id of ['photo-camera', 'photo-galerie']) {
 $('form-ajout').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = $('logo').files[0];
-  const logo = f ? await reduire(await lireFichier(f)) : null;
+  const logo = f ? await reduire(await lireFichier(f)) : logoAuto;
   const c = { id: Date.now().toString(36), nom: $('nom').value.trim(), code: $('code').value.trim(), format: formatDetecte, logo, dernier: Date.now() };
   await enregistrer(c);
   cartes.push(c);
@@ -228,6 +274,7 @@ $('importer').addEventListener('change', async (e) => {
   }
   afficher();
   navigator.storage?.persist?.(); // évite la purge automatique par le navigateur
+  completerLogos();
 })();
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');

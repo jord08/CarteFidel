@@ -13,3 +13,7 @@ Après toute modification des fichiers, incrémenter `CACHE` dans `sw.js`.
 
 ## Installation sur Android (Pixel)
 Héberger le dossier en HTTPS (ex. GitHub Pages), ouvrir l'URL dans Chrome, puis menu ⋮ > « Installer l'application ».
+
+## Logos d'enseignes
+`logos/` contient 31 logos issus de [Simple Icons](https://simpleicons.org) (v13.21.0, licence CC0), colorés à la couleur de la marque. Les marques restent la propriété de leurs détenteurs : dépôt à usage privé.
+Pour en ajouter : déposer un SVG dans `logos/`, l'ajouter à `logos/index.json` et incrémenter `CACHE` dans `sw.js`.
