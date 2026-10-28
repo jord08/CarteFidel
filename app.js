@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const ANCIENNE_CLE = 'cartefidel-cartes';
 const MODE_QR = 'qrcode';
 const SYMBOLOGIE_QR = 'qrcode'; // symbologie bwip-js (à ne pas confondre avec MODE_QR : préférence d'affichage)
-const ORIGINES_LOGO = ['catalogue', 'perso', 'retire'];
+const ORIGINE_LOGO = Object.freeze({ CATALOGUE: 'catalogue', PERSO: 'perso', RETIRE: 'retire' }); // voir « Cartes : forme et validation »
 const TAILLE_LOGO_MAX = 300; // px, pour les logos importés par l'utilisateur
 const TAILLE_IMPORT_MAX = 10 * 1024 * 1024; // octets
 
@@ -18,6 +18,7 @@ function montrerApercu(img, src) {
   img.hidden = !src;
   if (src) img.src = src;
 }
+const messageMenu = (texte) => { $('menu-statut').textContent = texte; };
 async function lireJson(url) {
   const reponse = await fetch(url);
   if (!reponse.ok) throw new Error(`${url} : ${reponse.status}`);
@@ -69,7 +70,7 @@ function nettoyerCarte(c) {
   };
   if (c.mode === MODE_QR) carte.mode = MODE_QR;
   // Un logo absent ne peut venir ni du catalogue ni de l'utilisateur (ex. image trop grosse écartée).
-  if (ORIGINES_LOGO.includes(c.origineLogo) && (carte.logo || c.origineLogo === 'retire')) carte.origineLogo = c.origineLogo;
+  if (Object.values(ORIGINE_LOGO).includes(c.origineLogo) && (carte.logo || c.origineLogo === ORIGINE_LOGO.RETIRE)) carte.origineLogo = c.origineLogo;
   return carte;
 }
 
@@ -292,15 +293,15 @@ async function completerLogos() {
     try {
       if (c.logo) {
         // Carte créée avant le suivi de l'origine du logo : le logo d'une enseigne connue est un logo du catalogue.
-        if (!c.origineLogo && trouverLogo(c.nom)) { c.origineLogo = 'catalogue'; await enregistrer(c); }
+        if (!c.origineLogo && trouverLogo(c.nom)) { c.origineLogo = ORIGINE_LOGO.CATALOGUE; await enregistrer(c); }
         continue;
       }
-      if (c.origineLogo === 'retire') continue;
+      if (c.origineLogo === ORIGINE_LOGO.RETIRE) continue;
       const nom = c.nom;
       const logo = await logoPour(nom);
       // La carte a pu être renommée ou recevoir un logo pendant l'attente.
       if (!logo || c.nom !== nom || c.logo) continue;
-      Object.assign(c, { logo, origineLogo: 'catalogue' });
+      Object.assign(c, { logo, origineLogo: ORIGINE_LOGO.CATALOGUE });
       await enregistrer(c);
       change = true;
     } catch (e) { /* réessai au prochain démarrage */ }
@@ -332,14 +333,14 @@ $('form-edit').addEventListener('submit', async (e) => {
   c.nom = nom;
   if (fichier) {
     // Image choisie par l'utilisateur : elle prime et n'est plus jamais remplacée.
-    Object.assign(c, { logo: await reduire(await lireFichier(fichier)), origineLogo: 'perso' });
+    Object.assign(c, { logo: await reduire(await lireFichier(fichier)), origineLogo: ORIGINE_LOGO.PERSO });
   } else if ($('retirer-logo').checked) {
-    Object.assign(c, { logo: null, origineLogo: 'retire' });
-  } else if (c.origineLogo !== 'perso') {
+    Object.assign(c, { logo: null, origineLogo: ORIGINE_LOGO.RETIRE });
+  } else if (c.origineLogo !== ORIGINE_LOGO.PERSO) {
     // Logo du catalogue : il suit le nouveau nom (celui de la nouvelle enseigne, ou aucun).
     const auto = await logoPour(nom).catch(() => null);
-    if (auto) Object.assign(c, { logo: auto, origineLogo: 'catalogue' });
-    else if (c.origineLogo === 'catalogue') { c.logo = null; delete c.origineLogo; }
+    if (auto) Object.assign(c, { logo: auto, origineLogo: ORIGINE_LOGO.CATALOGUE });
+    else if (c.origineLogo === ORIGINE_LOGO.CATALOGUE) { c.logo = null; delete c.origineLogo; }
   }
   await enregistrer(c);
   afficher();
@@ -504,7 +505,7 @@ $('form-ajout').addEventListener('submit', async (e) => {
   const logo = fichier ? await reduire(await lireFichier(fichier)) : logoPropose;
   const c = nettoyerCarte({
     id: nouvelId(), nom: $('nom').value, code: $('code').value, format: formatDetecte,
-    logo, origineLogo: fichier ? 'perso' : logoPropose ? 'catalogue' : undefined, dernier: Date.now(),
+    logo, origineLogo: fichier ? ORIGINE_LOGO.PERSO : logoPropose ? ORIGINE_LOGO.CATALOGUE : undefined, dernier: Date.now(),
   });
   if (!c) { $('statut').textContent = 'Le nom et le numéro sont obligatoires.'; return; }
   const doublon = cartes.find((x) => x.code === c.code);
@@ -532,7 +533,6 @@ $('menu').addEventListener('click', () => {
 });
 fermerAvec('menu-fermer', 'dlg-menu');
 
-const messageMenu = (texte) => { $('menu-statut').textContent = texte; };
 const nomFichier = () => `cartes-${new Date().toISOString().slice(0, 10)}.json`;
 const contenuExport = () => JSON.stringify({ version: 1, cartes }, null, 1);
 function telecharger(contenu = contenuExport()) {
@@ -549,7 +549,7 @@ $('exporter').addEventListener('click', () => telecharger());
 // les gros fichiers). Les logos choisis par l'utilisateur sont conservés.
 function pourPartage(c) {
   const { usages, dernier, ...reste } = c;
-  return c.origineLogo !== 'perso' && c.logo && trouverLogo(c.nom) ? { ...reste, logo: null } : reste;
+  return c.origineLogo !== ORIGINE_LOGO.PERSO && c.logo && trouverLogo(c.nom) ? { ...reste, logo: null } : reste;
 }
 const contenuPartage = () => JSON.stringify({ version: 1, cartes: cartes.map(pourPartage) });
 

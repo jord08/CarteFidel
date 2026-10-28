@@ -27,6 +27,6 @@ Héberger le dossier en HTTPS (ex. GitHub Pages), ouvrir l'URL dans Chrome, puis
 
 Pour en ajouter : déposer le fichier dans `logos/`, l'ajouter à `logos/index.json` (`nom`, `fichier`, `alias`) et incrémenter `CACHE` dans `sw.js`. Pour un logo blanc sur transparent, ajouter `fond` (couleur) et éventuellement `recadrage` (`[x, y, largeur, hauteur]`).
 
-Origine du logo d'une carte : `logoAuto` (catalogue, suit le nom), `logoPerso` (image choisie, jamais remplacée), `sansLogo` (retiré exprès, pas de ré-ajout automatique).
+Origine du logo d'une carte (champ `origineLogo`) : `catalogue` (suit le nom de l'enseigne), `perso` (image choisie, jamais remplacée), `retire` (retiré exprès, pas de ré-ajout automatique) ; absent pour une carte ancienne, dont l'origine est alors déduite du nom au démarrage.
 
 Crédits : les logos Micromania (CC BY-SA 4.0) et Jardiland (CC BY-SA 3.0) viennent de Wikimedia Commons ; ceux de Casino, Coccimarket, Weldom et Yves Rocher y sont indiqués comme domaine public (marques déposées).
