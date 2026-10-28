@@ -42,9 +42,24 @@
   "alias": []
  },
  {
+  "nom": "Casino",
+  "fichier": "logos/casino.svg",
+  "alias": [
+   "Casino supermarchés",
+   "Supermarchés Casino"
+  ]
+ },
+ {
   "nom": "Castorama",
   "fichier": "logos/castorama.svg",
   "alias": []
+ },
+ {
+  "nom": "Coccimarket",
+  "fichier": "logos/coccimarket.png",
+  "alias": [
+   "Cocci market"
+  ]
  },
  {
   "nom": "Cora",
@@ -126,6 +141,11 @@
   ]
  },
  {
+  "nom": "Jardiland",
+  "fichier": "logos/jardiland.png",
+  "alias": []
+ },
+ {
   "nom": "KFC",
   "fichier": "logos/kfc.svg",
   "alias": []
@@ -152,6 +172,14 @@
   "nom": "McDonald's",
   "fichier": "logos/mcdonalds.svg",
   "alias": []
+ },
+ {
+  "nom": "Micromania",
+  "fichier": "logos/micromania.svg",
+  "alias": [
+   "Micromania-Zing",
+   "Micromania Zing"
+  ]
  },
  {
   "nom": "Monoprix",
@@ -196,6 +224,16 @@
  {
   "nom": "Uniqlo",
   "fichier": "logos/uniqlo.svg",
+  "alias": []
+ },
+ {
+  "nom": "Weldom",
+  "fichier": "logos/weldom.svg",
+  "alias": []
+ },
+ {
+  "nom": "Yves Rocher",
+  "fichier": "logos/yvesrocher.svg",
   "alias": []
  },
  {

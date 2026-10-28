@@ -17,3 +17,5 @@ Héberger le dossier en HTTPS (ex. GitHub Pages), ouvrir l'URL dans Chrome, puis
 ## Logos d'enseignes
 `logos/` contient des logos issus de [Simple Icons](https://simpleicons.org) (v13.21.0, licence CC0), colorés à la couleur de la marque. Decathlon et Match viennent de Wikimedia Commons (domaine public). Les marques restent la propriété de leurs détenteurs : dépôt à usage privé.
 Pour en ajouter : déposer un SVG dans `logos/`, l'ajouter à `logos/index.json` et incrémenter `CACHE` dans `sw.js`.
+
+Crédits : les logos Micromania (CC BY-SA 4.0) et Jardiland (CC BY-SA 3.0) viennent de Wikimedia Commons ; ceux de Casino, Coccimarket, Weldom et Yves Rocher y sont indiqués comme domaine public (marques déposées).
