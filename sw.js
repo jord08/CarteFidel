@@ -1,6 +1,6 @@
 'use strict';
 // Incrémenter la version à chaque modification des fichiers ci-dessous (le numéro est affiché dans le menu de l'application).
-const CACHE = 'cartefidel-v18';
+const CACHE = 'cartefidel-v19';
 // Fichiers indispensables : si l'un manque, la nouvelle version n'est pas installée (l'ancienne reste utilisable).
 const FICHIERS = [
   './', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest',

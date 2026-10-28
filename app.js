@@ -70,8 +70,18 @@ function nettoyerCarte(c) {
   };
   if (c.mode === MODE_QR) carte.mode = MODE_QR;
   // Un logo absent ne peut venir ni du catalogue ni de l'utilisateur (ex. image trop grosse écartée).
-  if (Object.values(ORIGINE_LOGO).includes(c.origineLogo) && (carte.logo || c.origineLogo === ORIGINE_LOGO.RETIRE)) carte.origineLogo = c.origineLogo;
+  const origine = origineLogoDe(c);
+  if (origine && (carte.logo || origine === ORIGINE_LOGO.RETIRE)) carte.origineLogo = origine;
   return carte;
+}
+// Origine du logo d'une carte. Reprend aussi les trois indicateurs de la version 18 (logoAuto / logoPerso / sansLogo),
+// déployée brièvement avant le champ unique origineLogo : une carte sauvegardée alors garde son état.
+function origineLogoDe(c) {
+  if (Object.values(ORIGINE_LOGO).includes(c.origineLogo)) return c.origineLogo;
+  if (c.sansLogo === true) return ORIGINE_LOGO.RETIRE;
+  if (c.logoPerso === true) return ORIGINE_LOGO.PERSO;
+  if (c.logoAuto === true) return ORIGINE_LOGO.CATALOGUE;
+  return undefined;
 }
 
 // --- Stockage (IndexedDB) ---------------------------------------------------
