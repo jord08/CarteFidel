@@ -6,6 +6,7 @@ Portefeuille de cartes de fidélité, installable sur téléphone (PWA), pensé 
 - Code-barres ou QR code au choix, mémorisé par carte ; écran maintenu allumé pendant l'affichage d'un code
 - Ajout d'une carte : scan en direct avec la caméra, par photo ou depuis la galerie, ou saisie du numéro
 - Modification du nom et du logo d'une carte (le logo automatique suit le nouveau nom)
+- Les fenêtres se ferment d'un clic à côté (sur le fond grisé)
 - Logos d'enseignes ajoutés automatiquement d'après le nom (voir plus bas)
 - Stockage IndexedDB ; menu ⋮ : **Partager** (feuille de partage du système), **Exporter** (sauvegarde complète), **Importer**, numéro de version
 
