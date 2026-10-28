@@ -137,8 +137,22 @@ async function logoPour(nom) {
   const l = n && logos?.find((x) => [x.nom, ...x.alias].some((v) => norm(v) === n));
   if (!l) return null;
   const blob = await (await fetch(l.fichier)).blob();
+  if (l.fond) return logoSurFond(blob, l);
   // Le type est forcé : certains serveurs ne déclarent pas image/svg+xml.
   return lireFichier(l.fichier.endsWith('.svg') ? new Blob([blob], { type: 'image/svg+xml' }) : blob);
+}
+// Logos clairs sur transparent : fond de couleur et recadrage (l.fond, l.recadrage).
+async function logoSurFond(blob, l) {
+  const bmp = await createImageBitmap(blob);
+  const [x, y, w, h] = l.recadrage || [0, 0, bmp.width, bmp.height];
+  const cv = document.createElement('canvas');
+  const marge = Math.round(h * 0.3);
+  cv.width = w + 2 * marge; cv.height = h + 2 * marge;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = l.fond;
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.drawImage(bmp, x, y, w, h, marge, marge, w, h);
+  return cv.toDataURL('image/png');
 }
 async function proposerLogo() {
   logoAuto = $('logo').files[0] ? null : await logoPour($('nom').value);

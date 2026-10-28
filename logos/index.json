@@ -96,6 +96,21 @@
   ]
  },
  {
+  "nom": "Jacques Bockel",
+  "fichier": "logos/jacquesbockel.png",
+  "alias": [
+   "Bockel",
+   "Chocolaterie Jacques Bockel"
+  ],
+  "fond": "#3b2a20",
+  "recadrage": [
+   40,
+   60,
+   890,
+   150
+  ]
+ },
+ {
   "nom": "KFC",
   "fichier": "logos/kfc.svg",
   "alias": []
