@@ -2,13 +2,21 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#7b2d26">
 <title>Carte Fidèle</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header><h1>Mes cartes</h1></header>
+<header>
+  <h1>Mes cartes</h1>
+  <button id="menu" type="button" class="icone" aria-label="Sauvegarde">⋮</button>
+</header>
 <main>
+  <input id="recherche" type="search" placeholder="Rechercher une enseigne" aria-label="Rechercher" hidden>
   <p id="vide" hidden>Aucune carte. Appuyez sur + pour en ajouter.</p>
   <div id="grille"></div>
 </main>
@@ -27,7 +35,7 @@
         <input id="photo-galerie" type="file" accept="image/*" hidden></label>
     </div>
     <p class="aide">Photographiez le code-barres de la carte, ou choisissez une photo.</p>
-    <p id="statut" class="aide"></p>
+    <p id="statut" class="aide" role="status"></p>
     <label>Numéro du code-barres
       <input id="code" type="text" inputmode="text" required placeholder="Détecté automatiquement ou à saisir"></label>
     <label>Logo de l'enseigne (optionnel)
@@ -49,8 +57,18 @@
   </div>
 </dialog>
 
-<script src="https://cdn.jsdelivr.net/npm/bwip-js@4.5.1/dist/bwip-js-min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<dialog id="dlg-menu">
+  <h2>Sauvegarde</h2>
+  <p class="aide">Vos cartes sont stockées sur ce téléphone. Exportez-les pour les conserver ou les transférer.</p>
+  <div class="deux">
+    <button type="button" id="exporter">Exporter</button>
+    <label class="btn-fichier">Importer
+      <input id="importer" type="file" accept="application/json,.json" hidden></label>
+  </div>
+  <p id="menu-statut" class="aide" role="status"></p>
+  <button type="button" id="menu-fermer" class="secondaire">Fermer</button>
+</dialog>
+
 <script src="app.js"></script>
 </body>
 </html>
