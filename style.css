@@ -37,3 +37,8 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .bascule button[aria-pressed="true"] { background: #7b2d26; color: #fff; }
 .btn-fichier.secondaire { background: #888; }
 .version { margin: .75rem 0 0; font-size: .75rem; color: #888; text-align: right; }
+.plein { width: 100%; margin-bottom: .75rem; }
+#dlg-scan { text-align: center; }
+.viseur { position: relative; background: #000; border-radius: 10px; overflow: hidden; margin-bottom: .75rem; }
+#video { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+.cadre { position: absolute; inset: 22% 8%; border: 3px solid #fff; border-radius: 10px; box-shadow: 0 0 0 999px #0005; pointer-events: none; }

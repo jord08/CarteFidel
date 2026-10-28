@@ -279,6 +279,108 @@ for (const id of ['photo-camera', 'photo-galerie']) {
   $(id).addEventListener('change', (e) => { if (e.target.files[0]) scanner(e.target.files[0]); });
 }
 
+// --- Scan en direct (caméra) ------------------------------------------------
+let scan = null; // session en cours : { flux, minuteur, actif }
+
+function arreterScan() {
+  if (!scan) return;
+  const s = scan;
+  scan = null;
+  s.actif = false;
+  clearTimeout(s.minuteur);
+  s.flux?.getTracks().forEach((t) => t.stop());
+  $('video').srcObject = null;
+}
+
+function erreurCamera(e) {
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) return 'La caméra n\'est pas disponible ici (HTTPS requis).';
+  switch (e.name) {
+    case 'NotAllowedError': case 'SecurityError':
+      return 'Accès à la caméra refusé. Autorisez-le dans Chrome (cadenas > Autorisations), puis réessayez.';
+    case 'NotFoundError': case 'OverconstrainedError': return 'Aucune caméra trouvée.';
+    case 'NotReadableError': return 'La caméra est utilisée par une autre application.';
+    default: return 'Impossible de démarrer la caméra.';
+  }
+}
+
+async function demarrerScan() {
+  $('scan-statut').textContent = 'Démarrage de la caméra…';
+  $('dlg-scan').showModal();
+  const s = scan = { flux: null, minuteur: null, actif: true };
+  try {
+    s.flux = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false,
+    });
+    if (scan !== s) { s.flux.getTracks().forEach((t) => t.stop()); return; } // annulé pendant l'attente
+    // Mise au point continue quand la caméra le permet (codes-barres plus rapides à lire).
+    try {
+      const piste = s.flux.getVideoTracks()[0];
+      if (piste.getCapabilities?.().focusMode?.includes('continuous')) await piste.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+    } catch (e) { /* non supporté */ }
+    $('scan-statut').textContent = 'Placez le code-barres dans le cadre.';
+
+    // Une lecture n'est acceptée qu'après deux résultats identiques d'affilée (évite les fausses lectures).
+    let dernier = null;
+    let vu = 0;
+    const trouve = (texte, format) => {
+      if (!s.actif || !texte) return;
+      vu = texte === dernier ? vu + 1 : 1;
+      dernier = texte;
+      if (vu < 2) return;
+      arreterScan();
+      $('dlg-scan').close();
+      navigator.vibrate?.(60);
+      fin(texte, format);
+    };
+
+    const video = $('video');
+    video.srcObject = s.flux;
+    await video.play();
+
+    // lire() renvoie [texte, format] si un code est visible sur l'image courante, sinon null.
+    let lire;
+    if ('BarcodeDetector' in window) {
+      const detecteur = new BarcodeDetector();
+      lire = async () => {
+        const r = await detecteur.detect(video);
+        return r.length ? [r[0].rawValue, r[0].format] : null;
+      };
+    } else {
+      await charger('lib/zxing.min.js');
+      if (!s.actif) return;
+      const lecteur = new ZXing.MultiFormatReader();
+      lecteur.setHints(new Map([[ZXing.DecodeHintType.TRY_HARDER, true]]));
+      const image = document.createElement('canvas');
+      const ctx = image.getContext('2d', { willReadFrequently: true });
+      lire = async () => {
+        if (!video.videoWidth) return null;
+        image.width = video.videoWidth;
+        image.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+        try {
+          const r = lecteur.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(image))));
+          return [r.getText(), ZXing.BarcodeFormat[r.getBarcodeFormat()]];
+        } catch (e) { return null; } // aucun code sur cette image
+      };
+    }
+    const boucle = async () => {
+      if (!s.actif) return;
+      try {
+        const lu = await lire();
+        if (lu) trouve(lu[0], lu[1]);
+      } catch (e) { /* image pas encore prête */ }
+      if (s.actif) s.minuteur = setTimeout(boucle, 200);
+    };
+    boucle();
+  } catch (e) {
+    if (scan === s) $('scan-statut').textContent = erreurCamera(e);
+  }
+}
+$('scan-direct').addEventListener('click', demarrerScan);
+$('scan-annuler').addEventListener('click', () => $('dlg-scan').close());
+$('dlg-scan').addEventListener('close', arreterScan);
+
 $('form-ajout').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = $('logo').files[0];

@@ -29,13 +29,14 @@
     <label>Enseigne
       <input id="nom" type="text" required list="enseignes" autocomplete="off" placeholder="Ex : Carrefour"></label>
     <datalist id="enseignes"></datalist>
+    <button type="button" id="scan-direct" class="plein">🎥 Scanner avec la caméra</button>
     <div class="deux">
       <label class="btn-fichier">📷 Appareil photo
         <input id="photo-camera" type="file" accept="image/*" capture="environment" hidden></label>
       <label class="btn-fichier">🖼️ Galerie
         <input id="photo-galerie" type="file" accept="image/*" hidden></label>
     </div>
-    <p class="aide">Photographiez le code-barres de la carte, ou choisissez une photo.</p>
+    <p class="aide">Scannez le code-barres avec la caméra, prenez-le en photo, ou choisissez une photo.</p>
     <p id="statut" class="aide" role="status"></p>
     <label>Numéro du code-barres
       <input id="code" type="text" inputmode="text" required placeholder="Détecté automatiquement ou à saisir"></label>
@@ -49,6 +50,16 @@
       <button type="submit">Enregistrer</button>
     </div>
   </form>
+</dialog>
+
+<dialog id="dlg-scan">
+  <h2>Scanner le code</h2>
+  <div class="viseur">
+    <video id="video" playsinline muted></video>
+    <div class="cadre"></div>
+  </div>
+  <p id="scan-statut" class="aide" role="status">Placez le code-barres dans le cadre.</p>
+  <button type="button" id="scan-annuler" class="secondaire">Annuler</button>
 </dialog>
 
 <dialog id="dlg-code">

@@ -4,7 +4,7 @@ Portefeuille de cartes de fidélité, installable sur téléphone (PWA), pensé 
 - Fonctionne hors-ligne (service worker, bibliothèques embarquées dans `lib/`)
 - Cartes triées par nombre d'utilisations (puis par dernière utilisation), recherche à partir de 6 cartes
 - Écran maintenu allumé pendant l'affichage d'un code
-- Scan du code-barres par photo ou galerie
+- Scan du code-barres en direct avec la caméra, par photo ou depuis la galerie
 - Stockage IndexedDB, export/import JSON (menu ⋮)
 
 ## Développement
