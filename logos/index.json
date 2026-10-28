@@ -55,6 +55,13 @@
   "alias": []
  },
  {
+  "nom": "Decathlon",
+  "fichier": "logos/decathlon.svg",
+  "alias": [
+   "Décathlon"
+  ]
+ },
+ {
   "nom": "E.Leclerc",
   "fichier": "logos/edotleclerc.svg",
   "alias": [
@@ -102,6 +109,14 @@
   "nom": "Lidl",
   "fichier": "logos/lidl.svg",
   "alias": []
+ },
+ {
+  "nom": "Match",
+  "fichier": "logos/match.png",
+  "alias": [
+   "Supermarché Match",
+   "Supermarches Match"
+  ]
  },
  {
   "nom": "McDonald's",

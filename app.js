@@ -62,7 +62,7 @@ function afficher() {
   g.replaceChildren();
   const liste = cartes
     .filter((c) => c.nom.toLowerCase().includes(filtre))
-    .sort((a, b) => (b.dernier || 0) - (a.dernier || 0));
+    .sort((a, b) => (b.usages || 0) - (a.usages || 0) || (b.dernier || 0) - (a.dernier || 0));
   for (const c of liste) {
     const b = document.createElement('button');
     b.className = 'carte';
@@ -104,6 +104,7 @@ async function ouvrir(c) {
   try { verrou = await navigator.wakeLock?.request('screen'); } catch (e) { /* non supporté */ }
   await dessiner($('canvas-code'), c);
   c.dernier = Date.now();
+  c.usages = (c.usages || 0) + 1;
   enregistrer(c);
 }
 $('dlg-code').addEventListener('close', () => {
@@ -135,8 +136,9 @@ async function logoPour(nom) {
   const n = norm(nom);
   const l = n && logos?.find((x) => [x.nom, ...x.alias].some((v) => norm(v) === n));
   if (!l) return null;
-  const svg = await (await fetch(l.fichier)).text();
-  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+  const blob = await (await fetch(l.fichier)).blob();
+  // Le type est forcé : certains serveurs ne déclarent pas image/svg+xml.
+  return lireFichier(l.fichier.endsWith('.svg') ? new Blob([blob], { type: 'image/svg+xml' }) : blob);
 }
 async function proposerLogo() {
   logoAuto = $('logo').files[0] ? null : await logoPour($('nom').value);
