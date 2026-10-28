@@ -353,4 +353,12 @@ $('importer').addEventListener('change', async (e) => {
   completerLogos();
 })();
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+if ('serviceWorker' in navigator) {
+  // Mise à jour : quand une nouvelle version prend le relais, la page se recharge d'elle-même
+  // (sauf à la toute première installation, ou si une fenêtre de saisie est ouverte).
+  const avaitUneVersion = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (avaitUneVersion && !document.querySelector('dialog[open]')) location.reload();
+  });
+  navigator.serviceWorker.register('sw.js');
+}

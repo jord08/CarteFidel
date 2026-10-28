@@ -1,6 +1,6 @@
 'use strict';
 // Incrémenter la version à chaque modification des fichiers ci-dessous.
-const CACHE = 'cartefidel-v12';
+const CACHE = 'cartefidel-v13';
 const FICHIERS = [
   './', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest',
   'lib/bwip-js-min.js', 'lib/zxing.min.js',
@@ -11,9 +11,12 @@ const FICHIERS = [
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE).then(async (c) => {
-      await c.addAll(FICHIERS);
+      // cache: 'reload' contourne le cache HTTP du navigateur (sinon d'anciens fichiers
+      // encore « frais » pourraient être figés dans la nouvelle version).
+      const frais = (urls) => c.addAll(urls.map((u) => new Request(u, { cache: 'reload' })));
+      await frais(FICHIERS);
       const logos = await (await c.match('logos/index.json')).json();
-      await c.addAll(logos.map((l) => l.fichier));
+      await frais(logos.map((l) => l.fichier));
     }).then(() => self.skipWaiting()),
   );
 });
