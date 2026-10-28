@@ -65,7 +65,7 @@
 <dialog id="dlg-code">
   <h2 id="code-nom"></h2>
   <canvas id="canvas-code"></canvas>
-  <div class="bascule" role="group" aria-label="Type de code">
+  <div id="bascule" class="bascule" role="group" aria-label="Type de code">
     <button type="button" id="mode-barres" aria-pressed="true">Code-barres</button>
     <button type="button" id="mode-qr" aria-pressed="false">QR code</button>
   </div>
@@ -82,9 +82,15 @@
     <h2>Modifier la carte</h2>
     <label>Enseigne
       <input id="nom-edit" type="text" required list="enseignes" autocomplete="off"></label>
-    <p class="aide">Si la carte n'a pas de logo, il est ajouté automatiquement quand l'enseigne est connue.</p>
+    <div class="logo-ligne">
+      <img id="logo-edit-apercu" alt="" hidden>
+      <label>Changer le logo (optionnel)
+        <input id="logo-edit" type="file" accept="image/*"></label>
+    </div>
+    <label id="retirer-ligne" class="ligne"><input id="retirer-logo" type="checkbox"> Retirer le logo</label>
+    <p class="aide">Sans choix de votre part, le logo suit l'enseigne : il est ajouté ou remplacé automatiquement quand le nom correspond à une enseigne connue.</p>
     <div class="deux">
-      <button type="button" id="annuler-edit" class="secondaire">Annuler</button>
+      <button type="button" id="annuler-edit" class="secondaire">
       <button type="submit">Enregistrer</button>
     </div>
   </form>

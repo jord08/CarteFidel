@@ -42,3 +42,6 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .viseur { position: relative; background: #000; border-radius: 10px; overflow: hidden; margin-bottom: .75rem; }
 #video { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
 .cadre { position: absolute; inset: 22% 8%; border: 3px solid #fff; border-radius: 10px; box-shadow: 0 0 0 999px #0005; pointer-events: none; }
+.bascule[hidden] { display: none; }
+.ligne { display: flex; align-items: center; gap: .5rem; }
+#logo-edit-apercu { width: 3.5rem; height: 3.5rem; object-fit: contain; margin-bottom: .75rem; border: 1px solid #ddd; border-radius: 8px; padding: .25rem; }
