@@ -101,6 +101,17 @@
   "alias": []
  },
  {
+  "nom": "Gaumont Pathé",
+  "fichier": "logos/gaumontpathe.png",
+  "alias": [
+   "Gaumont Pathe",
+   "Gaumont",
+   "Pathé",
+   "Les cinémas Gaumont Pathé"
+  ],
+  "fond": "#8c8c8c"
+ },
+ {
   "nom": "H&M",
   "fichier": "logos/handm.svg",
   "alias": []
